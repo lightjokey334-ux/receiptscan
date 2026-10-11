@@ -102,7 +102,10 @@ async function addLink(link){
 async function addText(raw){const p=parse(raw);if(!p||!p.items.length)return toast('Nu am găsit produse în text.');
  const id=pend||('T'+p.ts+'-'+p.no);const old=R.find(x=>x.id===id)||{};
  await save({...old,...p,id,raw,pending:false});pend=null;await load();cur=R.findIndex(x=>x.id===id);show()}
-const shrink=async f=>{const b=await createImageBitmap(f),s=Math.min(1,1024/Math.max(b.width,b.height)),c=document.createElement('canvas');c.width=b.width*s;c.height=b.height*s;c.getContext('2d').drawImage(b,0,0,c.width,c.height);return c.toDataURL('image/jpeg',.8)};
+const shrink=async f=>{const b=await createImageBitmap(f),M=Math.max(b.width,b.height);
+ if(f.size<7e5&&M<=2000)return new Promise(ok=>{const r=new FileReader();r.onload=()=>ok(r.result);r.readAsDataURL(f)});
+ const k=Math.min(1,1600/M),c=document.createElement('canvas');c.width=Math.round(b.width*k);c.height=Math.round(b.height*k);
+ const x=c.getContext('2d');x.imageSmoothingQuality='high';x.drawImage(b,0,0,c.width,c.height);return c.toDataURL('image/jpeg',.9)};
 const fmt=r=>new Date(r.ts).toLocaleString('ro-RO',{day:'numeric',month:'long',year:'numeric',hour:'2-digit',minute:'2-digit'});
 const lei=n=>n.toFixed(2);
 function show(){const m=$('#m');$('#h').textContent=cur<0?(space==='guest'?'Cecurile mele · guest':'Cecurile mele'):'Cec';
@@ -128,7 +131,7 @@ const dl=(d,o)=>new Date(d).toLocaleDateString('ro-RO',o),D0=d=>new Date(d.getFu
 function range(){const d=new Date(pd);if(sm==='m'){const a=new Date(d.getFullYear(),d.getMonth(),1);return[a,new Date(a.getFullYear(),a.getMonth()+1,1)]}
  const a=D0(d);a.setDate(a.getDate()-((a.getDay()+6)%7));return[a,new Date(a.getFullYear(),a.getMonth(),a.getDate()+7)]}
 function shift(n){const[a]=range();pd=(sm==='m'?new Date(a.getFullYear(),a.getMonth()+n,1):new Date(a.getFullYear(),a.getMonth(),a.getDate()+7*n)).getTime()}
-const th=p=>`<span data-ph="${esc(p.k)}">${P[p.k]?`<img class="ph sm" src="${P[p.k]}">`:'<span class="ph sm"></span>'}</span>`;
+const th=p=>`<span data-ph="${esc(p.k)}">${P[p.k]?`<img class="ph sm" decoding="async" src="${P[p.k]}">`:'<span class="ph sm"></span>'}</span>`;
 const row=(p,sub,val,cl)=>`<div class="sr">${th(p)}<div class="n" data-p="${esc(p.k)}">${esc(p.n)}<div class="mute">${sub}</div></div><b class="m ${cl||''}" data-p="${esc(p.k)}">${val}</b></div>`;
 function openProd(k){pfrom={tab,cur};prod=k;tab='s';cur=-1;show()}
 function stats(){const m=$('#m');if(prod)return product(m);
@@ -221,7 +224,7 @@ async function sync(){
   const ur=lr.filter(r=>r.u>ls&&!pr.has(r.id)).map(r=>({user_id:space,id:r.id,data:r,updated_at:new Date(r.u).toISOString()}));
   const up=lp.filter(p=>p.u>ls&&!pp.has(p.k)).map(p=>({user_id:space,k:p.k,img:p.img,updated_at:new Date(p.u).toISOString()}));
   if(ur.length){const e=(await c.from('receipts').upsert(ur,{onConflict:'user_id,id'})).error;if(e)throw e}
-  for(let i=0;i<up.length;i+=8){const e=(await c.from('product_photos').upsert(up.slice(i,i+8),{onConflict:'user_id,k'})).error;if(e)throw e}
+  for(let i=0;i<up.length;i+=3){const e=(await c.from('product_photos').upsert(up.slice(i,i+3),{onConflict:'user_id,k'})).error;if(e)throw e}
   localStorage['ls'+space]=t0-300000;
   if(ch){const id=cur>=0&&R[cur]&&R[cur].id;await load();cur=id?R.findIndex(x=>x.id===id):-1;show()}
  }catch(e){if(navigator.onLine)toast('Sincronizare: '+(e.message||e))}finally{syncing=0}}
