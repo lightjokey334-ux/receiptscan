@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="ro"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#14532d">
+<link rel="manifest" href="manifest.webmanifest">
+<title>Cecurile mele</title>
+<style>
+:root{--bg:#eef1ee;--ink:#17211b;--mute:#66736b;--acc:#14532d;--paper:#fff;--line:#d5dcd6;color-scheme:light dark}
+@media(prefers-color-scheme:dark){:root{--bg:#121714;--ink:#e6ece8;--mute:#8d9a92;--acc:#4ade80;--paper:#1b231e;--line:#2b362f}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.4 system-ui,sans-serif;padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom)}
+header{position:sticky;top:0;background:var(--bg);padding:14px 16px 10px;display:flex;gap:8px;align-items:center;z-index:2}
+h1{font-size:22px;margin:0;flex:1}
+button,.btn{font:inherit;border:1px solid var(--acc);background:none;color:var(--acc);border-radius:10px;padding:8px 12px}
+button.p{background:var(--acc);color:var(--paper)}
+main{padding:0 16px 40px;max-width:560px;margin:auto}
+.card{background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:12px}
+.row{display:flex;justify-content:space-between;gap:10px;align-items:baseline}
+.mute{color:var(--mute);font-size:14px}.m{font-family:ui-monospace,monospace;font-variant-numeric:tabular-nums}
+.th{display:flex;gap:4px;margin-top:8px}.th img,.ph{width:44px;height:44px;border-radius:8px;object-fit:cover;background:var(--line);flex:none}
+.it{display:flex;gap:12px;align-items:center;padding:10px 0;border-bottom:1px dashed var(--line)}
+.it:last-of-type{border:0}.it .n{flex:1;min-width:0}.ph{width:56px;height:56px;display:grid;place-items:center;color:var(--mute);font-size:22px;border:1px dashed var(--mute);background:none;padding:0}
+img.ph{border:0}
+.nav{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+.tot{font-size:22px;font-weight:700}
+dialog{border:1px solid var(--line);border-radius:14px;background:var(--paper);color:var(--ink);width:min(92vw,520px)}
+textarea{width:100%;height:150px;font:14px ui-monospace,monospace;background:var(--bg);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:8px}
+#t{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:10px;display:none;max-width:90vw;z-index:9}
+</style></head><body>
+<header><h1 id="h">Cecurile mele</h1><button id="b1" class="p">Scanează QR</button><button id="b2">Adaugă</button><button id="b3" title="Proxy">⚙</button></header>
+<main id="m"></main><div id="t"></div>
+<input id="qf" type="file" accept="image/*" capture="environment" hidden>
+<input id="pf" type="file" accept="image/*" hidden>
+<dialog id="d"><form method="dialog"><p id="dt" class="mute"></p><textarea id="ta" placeholder="Link sau text"></textarea>
+<div class="row" style="margin-top:10px"><button value="x">Anulează</button><button id="ok" class="p" value="ok">Salvează</button></div></form></dialog>
+<script>
+const $=s=>document.querySelector(s);let db,R=[],P={},cur=-1,pk=null,pend=null;
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const toast=s=>{const t=$('#t');t.textContent=s;t.style.display='block';clearTimeout(t.i);t.i=setTimeout(()=>t.style.display='none',4000)};
+const idb=()=>new Promise((ok,er)=>{const q=indexedDB.open('cecuri',1);q.onupgradeneeded=()=>{q.result.createObjectStore('r',{keyPath:'id'});q.result.createObjectStore('p',{keyPath:'k'})};q.onsuccess=()=>ok(q.result);q.onerror=er});
+const tx=(s,m,f)=>new Promise((ok,er)=>{const t=db.transaction(s,m),r=f(t.objectStore(s));t.oncomplete=()=>ok(r.result);t.onerror=er});
+const key=n=>n.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9а-я%.]+/g,' ').trim();
+async function load(){R=(await tx('r','readonly',o=>o.getAll())).sort((a,b)=>b.ts-a.ts);P={};(await tx('p','readonly',o=>o.getAll())).forEach(x=>P[x.k]=x.img)}
+const save=r=>tx('r','readwrite',o=>o.put(r));
+// Extrage datele dintr-un text de chitanță fiscală (format SFS Moldova)
+function parse(t){
+ t=t.replace(/[`'´~=_-]{6,}/g,' ').replace(/\s+/g,' ');const tm=t.search(/\bTOTAL\b/);if(tm<0)return null;
+ const hm=t.match(/J\d{6,}/),from=hm?hm.index+hm[0].length:0,body=t.slice(from,tm);
+ const items=[],re=/(\d+\.\d{2})\s*([A-Z])(?=\s|$)/g;let m,last=0;
+ while(m=re.exec(body)){let s=body.slice(last,m.index);last=re.lastIndex;
+  const q=(s.match(/\d+\.\d{3}/)||['1'])[0];s=s.replace(q,' ').replace(/\sx\s/,' ');
+  const u=s.match(/(\d+\.\d{2})(?!.*\d+\.\d{2})/);if(u)s=s.replace(u[0],' ');
+  const n=s.replace(/\s+/g,' ').replace(/[\s,;]+$/,'').trim();if(n)items.push({n,q:+q,u:u?+u[1]:+m[1]/+q,t:+m[1],l:m[2]})}
+ const d=t.match(/DATA\s+(\d\d)\.(\d\d)\.(\d{4})\s+ORA\s+(\d\d:\d\d)/),no=t.match(/№:?\s*(\d+)/),tot=t.slice(tm).match(/TOTAL\s+(\d+\.\d{2})/);
+ return{store:((h=>(h.match(/((?:[A-ZĂÂÎȘȚŞŢ0-9.&"'-]+\s+)*[A-ZĂÂÎȘȚŞŢ0-9.&"'-]+)\s*$/)||[,h.slice(-40)])[1].trim())(t.split(/COD FISCAL/i)[0]))||'Magazin',ts:d?new Date(`${d[3]}-${d[2]}-${d[1]}T${d[4]}`).getTime():Date.now(),no:no?no[1]:'',total:tot?+tot[1]:items.reduce((a,i)=>a+i.t,0),items}}
+async function addLink(link){
+ const id=link.split('/').pop().split('?')[0].toUpperCase();let r=R.find(x=>x.id===id);
+ if(r){cur=R.indexOf(r);return show()}
+ r={id,link,store:'Cec nou',ts:Date.now(),items:[],total:0,pending:true};
+ try{const c=new AbortController();setTimeout(()=>c.abort(),8000);
+  const px=localStorage.px,h=await(await fetch(px?px+'?u='+encodeURIComponent(link):link,{signal:c.signal})).text(),d=new DOMParser().parseFromString(h,'text/html');d.querySelectorAll('script,style').forEach(e=>e.remove());const raw=d.body.textContent,p=parse(raw);
+  if(p&&p.items.length)r={...r,...p,raw,pending:false}}catch(e){}
+ await save(r);await load();cur=R.findIndex(x=>x.id===id);show();
+ if(r.pending)toast('Link salvat. Deschide cecul, copiază textul și lipește-l aici.')}
+async function addText(raw){const p=parse(raw);if(!p||!p.items.length)return toast('Nu am găsit produse în text.');
+ const id=pend||('T'+p.ts+'-'+p.no);const old=R.find(x=>x.id===id)||{};
+ await save({...old,...p,id,raw,pending:false});pend=null;await load();cur=R.findIndex(x=>x.id===id);show()}
+const shrink=async f=>{const b=await createImageBitmap(f),s=Math.min(1,480/Math.max(b.width,b.height)),c=document.createElement('canvas');c.width=b.width*s;c.height=b.height*s;c.getContext('2d').drawImage(b,0,0,c.width,c.height);return c.toDataURL('image/jpeg',.72)};
+const fmt=r=>new Date(r.ts).toLocaleString('ro-RO',{day:'numeric',month:'long',year:'numeric',hour:'2-digit',minute:'2-digit'});
+const lei=n=>n.toFixed(2);
+function show(){const m=$('#m');$('#h').textContent=cur<0?'Cecurile mele':'Cec';
+ if(cur<0){m.innerHTML=R.length?R.map((r,i)=>`<div class="card" data-i="${i}"><div class="row"><b>${esc(r.store)}</b><span class="m tot" style="font-size:18px">${lei(r.total)}</span></div><div class="mute">${fmt(r)} · ${r.items.length} produse</div><div class="th">${r.items.slice(0,6).map(i=>P[key(i.n)]?`<img src="${P[key(i.n)]}">`:'').join('')}</div></div>`).join(''):'<p class="mute">Niciun cec încă. Apasă „Scanează QR" și fotografiază codul de pe cec.</p>';
+  m.querySelectorAll('.card').forEach(c=>c.onclick=()=>{cur=+c.dataset.i;show()});return}
+ const r=R[cur];
+ m.innerHTML=`<div class="nav"><button id="bk">‹ Toate</button><span class="mute">${cur+1} / ${R.length}</span><span><button id="pv" ${cur>=R.length-1?'disabled':''}>‹</button> <button id="nx" ${cur<1?'disabled':''}>›</button></span></div>
+ <div class="card"><b>${esc(r.store)}</b><div class="mute">${fmt(r)}${r.no?' · bon №'+r.no:''}</div>${r.pending?'<p>Produsele nu au fost încă citite.</p><button id="pt" class="p">Lipește textul cecului</button>':''}
+ ${r.items.map(i=>{const k=key(i.n);return`<div class="it"><${P[k]?`img class="ph" src="${P[k]}"`:'button class="ph"'} data-k="${esc(k)}">${P[k]?'':'+'}</${P[k]?'img':'button'}><div class="n">${esc(i.n)}<div class="mute m">${i.q} × ${lei(i.u)}</div></div><span class="m">${lei(i.t)}</span></div>`}).join('')}
+ <div class="row" style="margin-top:10px"><span>Total</span><span class="tot m">${lei(r.total)}</span></div></div>
+ <div class="row"><a href="${esc(r.link||'#')}" target="_blank" class="mute">Deschide cecul online</a><button id="rm">Șterge</button></div>`;
+ $('#bk').onclick=()=>{cur=-1;show()};$('#pv').onclick=()=>{cur++;show()};$('#nx').onclick=()=>{cur--;show()};
+ $('#rm').onclick=async()=>{if(confirm('Ștergi cecul?')){await tx('r','readwrite',o=>o.delete(r.id));await load();cur=-1;show()}};
+ if($('#pt'))$('#pt').onclick=()=>ask('Lipește textul cecului',r.id);
+ m.querySelectorAll('[data-k]').forEach(e=>e.onclick=()=>{pk=e.dataset.k;$('#pf').click()})}
+function ask(t,id){pend=id||null;$('#dt').textContent=t;$('#ta').value='';$('#d').showModal()}
+$('#b2').onclick=()=>ask('Lipește un link de cec sau textul chitanței');
+$('#d').onclose=()=>{const v=$('#ta').value.trim();if($('#d').returnValue!=='ok'||!v)return;/^https?:\/\//.test(v)?addLink(v):addText(v)};
+$('#b3').onclick=()=>{const v=prompt('Adresa proxy-ului (Cloudflare Worker), goală = fără proxy:',localStorage.px||'');if(v!==null)localStorage.px=v.trim()};
+$('#b1').onclick=()=>$('#qf').click();
+$('#qf').onchange=async e=>{const f=e.target.files[0];e.target.value='';if(!f)return;
+ if(!('BarcodeDetector'in window))return toast('Browserul nu citește QR. Lipește linkul cu „Adaugă".');
+ const c=await new BarcodeDetector({formats:['qr_code']}).detect(await createImageBitmap(f));
+ c.length&&/^https?:/.test(c[0].rawValue)?addLink(c[0].rawValue):toast('Nu am găsit codul QR. Încearcă din nou, mai de aproape.')};
+$('#pf').onchange=async e=>{const f=e.target.files[0];e.target.value='';if(!f||!pk)return;
+ const img=await shrink(f);await tx('p','readwrite',o=>o.put({k:pk,img}));await load();show()};
+let x0=null;document.addEventListener('touchstart',e=>x0=e.touches[0].clientX);
+document.addEventListener('touchend',e=>{if(cur<0||x0==null)return;const d=e.changedTouches[0].clientX-x0;
+ if(d<-70&&cur<R.length-1){cur++;show()}else if(d>70&&cur>0){cur--;show()}x0=null});
+(async()=>{db=await idb();await load();show();if('serviceWorker'in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{})})();
+</script></body></html>
