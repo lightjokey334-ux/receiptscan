@@ -48,6 +48,9 @@ input[type=checkbox]{width:22px;height:22px;flex:none}
 #lb,#sc{position:fixed;inset:0;background:#000d;z-index:8;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:16px}
 #lb[hidden],#sc[hidden]{display:none}#li{max-width:100%;max-height:75vh;border-radius:12px;object-fit:contain}
 #v{width:100%;max-width:520px;max-height:70vh;border-radius:14px;object-fit:cover}
+#m.screen-in{animation:screen-in .18s ease-out}
+@keyframes screen-in{from{opacity:.75;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
+@media(prefers-reduced-motion:reduce){#m.screen-in{animation:none}}
 </style></head><body>
 <header><h1 id="h">Cecurile mele</h1><button id="b2">＋ Adaugă</button><button id="b4" title="Cont">👤</button></header>
 <main id="m"></main><div id="t"></div>
@@ -67,7 +70,13 @@ input[type=checkbox]{width:22px;height:22px;flex:none}
 <div class="row" style="margin-top:10px"><button value="x">Anulează</button><button id="ok" class="p" value="ok">Salvează</button></div></form></dialog>
 <script>
 const $=s=>document.querySelector(s);const ym=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
-let db,R=[],P={},cur=-1,pk=null,pend=null,tab='r',mo=ym(new Date()),sm='m',pd=Date.now(),prod=null,pfrom=null,lastErr={},retrying=0,ed=null,sq='',sv='s',META={cats:{},shop:[],budget:0};
+let db,R=[],P={},cur=-1,pk=null,pend=null,tab='r',mo=ym(new Date()),sm='m',pd=Date.now(),prod=null,lastErr={},retrying=0,ed=null,sq='',sv='s',META={cats:{},shop:[],budget:0};
+const navigationState=()=>({checkScanner:true,tab,receiptId:cur>=0&&R[cur]?R[cur].id:null,prod,editing:!!ed});
+const pushNavigation=()=>history.pushState(navigationState(),'');
+function openReceipt(i){const changed=tab!=='r'||cur!==i||prod!==null;tab='r';prod=null;cur=i;ed=null;if(changed)pushNavigation();show()}
+addEventListener('popstate',e=>{const s=e.state;if(!s||!s.checkScanner){tab='r';prod=null;cur=-1;ed=null;return show()}
+ tab=s.tab==='s'?'s':'r';prod=s.prod||null;cur=s.receiptId?R.findIndex(r=>r.id===s.receiptId):-1;ed=s.editing&&cur>=0?JSON.parse(JSON.stringify(R[cur])):null;show()});
+history.replaceState(navigationState(),'');
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const toast=s=>{const t=$('#t');t.textContent=s;t.style.display='block';clearTimeout(t.i);t.i=setTimeout(()=>t.style.display='none',4000)};
 const idb=n=>new Promise((ok,er)=>{const q=indexedDB.open(n,1);q.onupgradeneeded=()=>{q.result.createObjectStore('r',{keyPath:'id'});q.result.createObjectStore('p',{keyPath:'k'})};q.onsuccess=()=>ok(q.result);q.onerror=er});
@@ -99,22 +108,22 @@ async function retry(){if(!navigator.onLine||retrying)return;retrying=1;let ch=0
 async function addLink(link){
  link=clean(link);if(!link)return toast('Link invalid.');
  const id=link.split('/').pop().split('?')[0].toUpperCase();let r=R.find(x=>x.id===id);
- tab='r';prod=null;if(r&&!r.pending){cur=R.indexOf(r);return show()}
+ if(r&&!r.pending)return openReceipt(R.indexOf(r));
  r=r||{id,link,store:'Cec nou',ts:Date.now(),items:[],total:0,pending:true};r.link=link;toast('Se citesc produsele...');
  let g;for(const w of [0,2500,6000]){if(w)await new Promise(ok=>setTimeout(ok,w));g=await getReceipt(link);if(!g.fail||!navigator.onLine)break}
  if(g.fail){lastErr[id]=g.fail;r.err=g.fail}else r={...r,...g,err:''};
- await save(r);await load();cur=R.findIndex(x=>x.id===id);show();
+ await save(r);await load();openReceipt(R.findIndex(x=>x.id===id));
  if(r.pending)toast(navigator.onLine?'Nu am putut citi produsele ('+g.fail+'). Se reîncearcă automat.':'Ești offline. Produsele apar automat când te conectezi.')}
 async function addText(raw){const p=parse(raw);if(!p||!p.items.length)return toast('Nu am găsit produse în text.');
  const id=pend||('T'+p.ts+'-'+p.no);const old=R.find(x=>x.id===id)||{};
- await save({...old,...p,id,raw,pending:false});pend=null;await load();cur=R.findIndex(x=>x.id===id);show()}
+ await save({...old,...p,id,raw,pending:false});pend=null;await load();openReceipt(R.findIndex(x=>x.id===id))}
 const shrink=async f=>{const b=await createImageBitmap(f),M=Math.max(b.width,b.height);
  if(f.size<7e5&&M<=2000)return new Promise(ok=>{const r=new FileReader();r.onload=()=>ok(r.result);r.readAsDataURL(f)});
  const k=Math.min(1,1600/M),c=document.createElement('canvas');c.width=Math.round(b.width*k);c.height=Math.round(b.height*k);
  const x=c.getContext('2d');x.imageSmoothingQuality='high';x.drawImage(b,0,0,c.width,c.height);return c.toDataURL('image/jpeg',.9)};
 const fmt=r=>new Date(r.ts).toLocaleString('ro-RO',{day:'numeric',month:'long',year:'numeric',hour:'2-digit',minute:'2-digit'});
 const lei=n=>n.toFixed(2);
-function show(){const m=$('#m');if(cur<0)ed=null;$('#h').textContent=cur<0?(space==='guest'?'Cecurile mele · guest':'Cecurile mele'):'Cec';
+function show(){const m=$('#m');m.classList.remove('screen-in');void m.offsetWidth;m.classList.add('screen-in');if(cur<0)ed=null;$('#h').textContent=cur<0?(space==='guest'?'Cecurile mele · guest':'Cecurile mele'):'Cec';
  document.querySelectorAll('#bn [data-t]').forEach(b=>b.classList.toggle('on',b.dataset.t===tab));
  if(tab==='s'){$('#h').textContent=prod?'Produs':'Statistici';return stats()}
  if(cur<0){return listView(m)}
@@ -124,9 +133,9 @@ function show(){const m=$('#m');if(cur<0)ed=null;$('#h').textContent=cur<0?(spac
  ${r.items.map(i=>{const k=key(i.n);return`<div class="it"><${P[k]?`img class="ph" src="${P[k]}"`:'button class="ph"'} data-k="${esc(k)}">${P[k]?'':'+'}</${P[k]?'img':'button'}><div class="n" data-p="${esc(k)}">${esc(i.n)}<div class="mute m">${i.q} × ${lei(i.u)}</div></div><span class="m">${lei(i.t)}</span></div>`}).join('')}
  <div class="row" style="margin-top:10px"><span>Total</span><span class="tot m">${lei(r.total)}</span></div></div>
  <div class="row"><a href="${esc(r.link||'#')}" target="_blank" class="mute">Deschide cecul online</a>${r.demo?'':'<button id="rm">Șterge</button>'}</div>`;
- $('#bk').onclick=()=>{cur=-1;show()};$('#pv').onclick=()=>{cur++;show()};$('#nx').onclick=()=>{cur--;show()};
+ $('#bk').onclick=()=>history.back();$('#pv').onclick=()=>{cur++;show()};$('#nx').onclick=()=>{cur--;show()};
  if($('#rm'))$('#rm').onclick=async()=>{if(confirm('Ștergi cecul?')){await save({id:r.id,deleted:true,items:[],ts:r.ts});await load();cur=-1;show()}};
- if($('#eb'))$('#eb').onclick=()=>{ed=JSON.parse(JSON.stringify(r));show()};
+ if($('#eb'))$('#eb').onclick=()=>{ed=JSON.parse(JSON.stringify(r));pushNavigation();show()};
  if($('#pt'))$('#pt').onclick=()=>ask('Lipește textul cecului',r.id);
  if($('#rt'))$('#rt').onclick=async()=>{toast('Se încearcă...');await retry();const x=R.find(y=>y.id===r.id);if(x&&x.pending)toast('Încă nu merge. Verifică internetul sau proxy-ul.')};
  m.querySelectorAll('[data-k]').forEach(e=>e.onclick=()=>zoom(e.dataset.k));bind(m)}
@@ -139,7 +148,7 @@ function range(){const d=new Date(pd);if(sm==='m'){const a=new Date(d.getFullYea
 function shift(n){const[a]=range();pd=(sm==='m'?new Date(a.getFullYear(),a.getMonth()+n,1):new Date(a.getFullYear(),a.getMonth(),a.getDate()+7*n)).getTime()}
 const th=p=>`<span data-ph="${esc(p.k)}">${P[p.k]?`<img class="ph sm" decoding="async" src="${P[p.k]}">`:'<span class="ph sm"></span>'}</span>`;
 const row=(p,sub,val,cl)=>`<div class="sr">${th(p)}<div class="n" data-p="${esc(p.k)}">${esc(p.n)}<div class="mute">${sub}</div></div><b class="m ${cl||''}" data-p="${esc(p.k)}">${val}</b></div>`;
-function openProd(k){pfrom={tab,cur};prod=k;tab='s';cur=-1;show()}
+function openProd(k){prod=k;tab='s';cur=-1;pushNavigation();show()}
 function stats(){const m=$('#m');if(prod)return product(m);if(sv==='i')return ideas(m);
  const rs=R.filter(r=>!r.pending);
  if(!rs.length){m.innerHTML='<p class="mute">Statisticile apar după ce ai cel puțin un cec cu produse.</p>';return}
@@ -180,8 +189,8 @@ function product(m){const k=prod,e=[];R.filter(r=>!r.pending).forEach(r=>r.items
  ${asc.length>1?`<svg viewBox="0 0 300 70" style="width:100%;height:80px;margin-top:6px"><polyline points="${xy.map(p=>p.join(',')).join(' ')}" fill="none" style="stroke:var(--acc)" stroke-width="2"/>${xy.map(p=>`<circle cx="${p[0]}" cy="${p[1]}" r="3" style="fill:var(--acc)"/>`).join('')}</svg>`:''}</div>
  <h3 class="sec">Când l-ai cumpărat</h3><div class="card">${e.map(x=>`<div class="sr" data-r="${esc(x.r.id)}" style="cursor:pointer"><div class="n">${dl(x.r.ts,{day:'numeric',month:'long',year:'numeric'})}<div class="mute">${esc(x.r.store)} · ${x.i.q} × ${lei(x.i.u)}</div></div><b class="m">${lei(x.i.t)}</b></div>`).join('')}</div>`;
  $('#pc').onchange=ev=>{META.cats[k]=ev.target.value;saveMeta()};
- $('#pb').onclick=()=>{prod=null;tab=pfrom?pfrom.tab:'s';cur=pfrom&&pfrom.cur<R.length?pfrom.cur:-1;show()};
- m.querySelectorAll('[data-r]').forEach(el=>el.onclick=()=>{const ix=R.findIndex(r=>r.id===el.dataset.r);if(ix>=0){prod=null;tab='r';cur=ix;show()}});bind(m)}
+ $('#pb').onclick=()=>history.back();
+ m.querySelectorAll('[data-r]').forEach(el=>el.onclick=()=>{const ix=R.findIndex(r=>r.id===el.dataset.r);if(ix>=0)openReceipt(ix)});bind(m)}
 const CATS=['Lactate și ouă','Pâine și patiserie','Fructe și legume','Carne și pește','Băuturi','Dulciuri și snacks','Curățenie și casă','Igienă','Altele'];
 const KW=[['Lactate și ouă','lapte chefir iaurt branza smantana unt telemea kefir cascaval ricotta oua'],['Pâine și patiserie','paine franzela chifla covrig placinta tort corn lipie'],['Fructe și legume','mere banane rosii castravet cartof ceapa morcov varza lamai portocal struguri fructe legume salata'],['Carne și pește','carne pui pulpe carnat peste salam pelmeni cirnat sunca piept cotlet macrou'],['Băuturi','apa suc bere vin cafea ceai cola limonada vodca'],['Dulciuri și snacks','ciocolata napolitane biscuiti bomboane seminte chipsuri inghetata drajeu nuci covrigei'],['Curățenie și casă','detergent sapun hartie punga saci burete praf servetele'],['Igienă','pasta dinti sampon deodorant periuta absorbante']];
 const guess=k=>{const w=k.split(' ');for(const[c,l]of KW)if(l.split(' ').some(x=>w.some(y=>y.startsWith(x))))return c;return'Altele'};
@@ -201,7 +210,7 @@ function listView(m){
    if(ix.length)h+='<h3 class="sec">Cecuri ('+ix.length+')</h3>'}
   let last='';h+=ix.map(i=>{const r=R[i],ml=dl(r.ts,{month:'long',year:'numeric'}),hd=ml!==last?'<h3 class="mute" style="margin:14px 0 8px;text-transform:capitalize">'+ml+'</h3>':'';last=ml;return hd+card(r,i)}).join('');
   if(q&&!ix.length&&!np)h='<p class="mute">Nimic găsit.</p>';
-  res.innerHTML=h;res.querySelectorAll('.card[data-i]').forEach(c=>c.onclick=()=>{cur=+c.dataset.i;show()});bind(res)};
+  res.innerHTML=h;res.querySelectorAll('.card[data-i]').forEach(c=>c.onclick=()=>openReceipt(+c.dataset.i));bind(res)};
  $('#sq').oninput=e=>{sq=e.target.value;f()};f()}
 function editView(m,r){const e=ed,tot=()=>e.items.reduce((s,i)=>s+i.t,0),z=n=>String(n).padStart(2,'0'),x=new Date(e.ts);
  const dt=x.getFullYear()+'-'+z(x.getMonth()+1)+'-'+z(x.getDate())+'T'+z(x.getHours())+':'+z(x.getMinutes());
@@ -213,8 +222,8 @@ function editView(m,r){const e=ed,tot=()=>e.items.reduce((s,i)=>s+i.t,0),z=n=>St
  m.querySelectorAll('.ei').forEach(d=>{const j=+d.dataset.j;d.querySelectorAll('input').forEach(inp=>inp.oninput=()=>{const f=inp.dataset.f,i=e.items[j];if(f==='n')i.n=inp.value;else{i[f]=parseFloat(inp.value)||0;i.t=Math.round(i.q*i.u*100)/100;$('#lt'+j).textContent=lei(i.t)}e.total=tot();$('#e-t').value=e.total.toFixed(2)})});
  $('#e-t').oninput=ev=>{e.total=parseFloat(ev.target.value)||0};$('#e-s').oninput=ev=>{e.store=ev.target.value};$('#e-d').onchange=ev=>{const t=Date.parse(ev.target.value);if(t)e.ts=t};
  m.querySelectorAll('[data-x]').forEach(b=>b.onclick=()=>{e.items.splice(+b.dataset.x,1);e.total=tot();editView(m,r)});
- $('#ea').onclick=()=>{e.items.push({n:'',q:1,u:0,t:0,l:''});editView(m,r)};$('#ec').onclick=()=>{ed=null;show()};
- $('#es').onclick=async()=>{e.items=e.items.filter(i=>i.n.trim());e.items.forEach(i=>i.n=i.n.trim());e.store=(e.store||'').trim()||'Magazin';e.pending=!e.items.length&&!!e.link;e.err='';ed=null;const id=e.id;await save(e);await load();cur=R.findIndex(y=>y.id===id);show()}}
+ $('#ea').onclick=()=>{e.items.push({n:'',q:1,u:0,t:0,l:''});editView(m,r)};$('#ec').onclick=()=>history.back();
+ $('#es').onclick=async()=>{e.items=e.items.filter(i=>i.n.trim());e.items.forEach(i=>i.n=i.n.trim());e.store=(e.store||'').trim()||'Magazin';e.pending=!e.items.length&&!!e.link;const id=e.id;await save(e);await load();cur=R.findIndex(y=>y.id===id);ed=null;history.back()}}
 function ideas(m){
  const rs=R.filter(r=>!r.pending),now=Date.now(),DAY=864e5,sum=l=>l.reduce((s,r)=>s+r.total,0),avg=a=>a.reduce((s,x)=>s+x,0)/a.length;
  const h={};rs.forEach(r=>r.items.forEach(i=>{const k=key(i.n),o=h[k]=h[k]||{n:i.n,k,ts:[],st:{}};o.ts.push(r.ts);(o.st[r.store]=o.st[r.store]||[]).push(i.u)}));
@@ -256,7 +265,7 @@ async function scan(){
  const v=$('#v');v.srcObject=st;await v.play();$('#sc').hidden=false;let busy=0,w=0;
  tm=setInterval(async()=>{if(busy||!v.videoWidth)return;busy=1;try{const u=await decode(v,v.videoWidth,v.videoHeight);if(u){stop();addLink(u)}}catch(e){if(!w){w=1;toast('Cititorul QR nu s-a încărcat. Conectează-te o dată la internet.')}}busy=0},300)}
 $('#fab').onclick=scan;$('#sx').onclick=stop;
-document.querySelectorAll('#bn [data-t]').forEach(b=>b.onclick=()=>{tab=b.dataset.t;cur=-1;prod=null;show()});
+document.querySelectorAll('#bn [data-t]').forEach(b=>b.onclick=()=>{const next=b.dataset.t;if(tab===next&&cur<0&&!prod)return;tab=next;cur=-1;prod=null;ed=null;pushNavigation();show()});
 $('#pxs').onclick=()=>{localStorage.px=$('#px').value.trim();toast('Proxy salvat')};
 $('#lc').onclick=()=>$('#lb').hidden=true;$('#lb').onclick=e=>{if(e.target.id==='lb')$('#lb').hidden=true};
 $('#lp').onclick=()=>{$('#lb').hidden=true;$('#pf').click()};
@@ -264,9 +273,10 @@ $('#qf').onchange=async e=>{const f=e.target.files[0];e.target.value='';if(!f)re
  try{const b=await createImageBitmap(f),u=await decode(b,b.width,b.height);u?addLink(u):toast('Nu am găsit codul QR. Încearcă din nou, mai de aproape.')}catch(x){toast('Cititorul QR nu s-a încărcat. Lipește linkul cu „Adaugă”.')}};
 $('#pf').onchange=async e=>{const f=e.target.files[0];e.target.value='';if(!f||!pk)return;
  const img=await shrink(f);await tx('p','readwrite',o=>o.put({k:pk,img,u:Date.now()}));sync();await load();show()};
-let x0=null;document.addEventListener('touchstart',e=>x0=e.touches[0].clientX);
-document.addEventListener('touchend',e=>{if(cur<0||x0==null)return;const d=e.changedTouches[0].clientX-x0;
- if(d<-70&&cur<R.length-1){cur++;show()}else if(d>70&&cur>0){cur--;show()}x0=null});
+let x0=null;document.addEventListener('touchstart',e=>{x0=e.touches.length===1?e.touches[0].clientX:null});
+document.addEventListener('touchend',e=>{if(cur<0||x0==null)return;const start=x0;x0=null;if(start<24||start>innerWidth-24)return;const d=e.changedTouches[0].clientX-start;
+ if(d<-70&&cur<R.length-1){cur++;history.replaceState(navigationState(),'');show()}else if(d>70&&cur>0){cur--;history.replaceState(navigationState(),'');show()}});
+document.addEventListener('touchcancel',()=>x0=null);
 const SBU='https://cgernuoiikenyzzsjajx.supabase.co',SBK='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNnZXJudW9paWtlbnl6enNqYWp4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE3MTU1OTQsImV4cCI6MjEwNzI5MTU5NH0.K7zkrIpAHrG8_yOm5xeKm1fhD33oo-Hsm3nZ4ytk7ZQ';
 let S=null,space=localStorage.uid||'guest',syncing=0;
 const lib=()=>new Promise((ok,er)=>{if(window.supabase)return ok();const s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js';s.onload=ok;s.onerror=er;document.head.appendChild(s)});
@@ -311,5 +321,5 @@ $('#sin').onclick=async()=>{try{const c=await sb(),{data,error}=await c.auth.sig
 $('#sup').onclick=async()=>{try{const c=await sb(),{data,error}=await c.auth.signUp(cred());if(error)return am(error.message);data.session?await enter(data.user):am('Verifică emailul, confirmă contul, apoi apasă Intră.')}catch(e){am('Nu merge fără internet.')}};
 $('#lo').onclick=async()=>{try{const c=await sb();await c.auth.signOut()}catch(e){}space='guest';delete localStorage.uid;delete localStorage.email;cur=-1;await openSpace();show();$('#ad').close()};
 addEventListener('online',()=>{retry();sync()});
-(async()=>{await openSpace();show();sync();retry();setInterval(()=>{if(R.some(x=>x.pending&&x.link))retry()},30000);if(!('BarcodeDetector'in window))jsqr().catch(()=>{});if('serviceWorker'in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{})})();
+(async()=>{await openSpace();history.replaceState(navigationState(),'');show();sync();retry();setInterval(()=>{if(R.some(x=>x.pending&&x.link))retry()},30000);if(!('BarcodeDetector'in window))jsqr().catch(()=>{});if('serviceWorker'in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{})})();
 </script></body></html>
