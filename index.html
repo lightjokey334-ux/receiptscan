@@ -75,6 +75,12 @@ main.wide{max-width:1100px}
 .dot.r{right:-14px}.dot.l{left:-14px}
 #lbar{position:sticky;bottom:92px;display:none;gap:10px;align-items:center;justify-content:space-between;background:var(--ink);color:var(--bg);border-radius:12px;padding:10px 12px;margin-top:10px;z-index:4}
 #lbar button{border-color:var(--bg);color:var(--bg)}#lbar small{opacity:.75}
+
+body{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+input,textarea,select,[contenteditable],.cp,.cp *{-webkit-user-select:text;user-select:text;-webkit-touch-callout:default}
+img{-webkit-user-drag:none}
+.lc .up{font-size:11px;color:var(--mute);margin-top:1px}
+.pm{display:flex;gap:6px;margin:8px 0 2px}.pm button{padding:4px 12px;font-size:14px;border-radius:16px}.pm .on{background:var(--acc);color:var(--paper)}
 </style></head><body>
 <header><h1 id="h">Cecurile mele</h1><button id="b2">＋ Adaugă</button><button id="b4" title="Cont">👤</button></header>
 <main id="m"></main><div id="t"></div>
@@ -82,7 +88,7 @@ main.wide{max-width:1100px}
 <dialog id="ad"><p id="am" class="mute"></p>
 <div id="af"><input id="em" type="email" placeholder="Email" autocomplete="email"><input id="pw" type="password" placeholder="Parolă (minim 6 caractere)" autocomplete="current-password">
 <div class="row" style="margin-top:8px"><button id="sin" class="p">Intră</button><button id="sup">Creează cont</button></div></div>
-<div id="ao" hidden><p id="ae"></p><button id="lo">Ieși din cont</button></div>
+<div id="ao" hidden><p id="ae" class="cp"></p><button id="lo">Ieși din cont</button></div>
 <div class="row" style="margin-top:14px;gap:8px"><button id="ex">Exportă date</button><button id="im">Importă date</button></div><input id="if" type="file" accept=".json,application/json" hidden>
 <details style="margin-top:14px"><summary class="mute">Avansat</summary><input id="px" placeholder="Adresa proxy Cloudflare (opțional)"><button id="pxs">Salvează proxy</button></details>
 <button id="ax" style="margin-top:14px">Închide</button></dialog>
@@ -102,7 +108,7 @@ addEventListener('popstate',e=>{const s=e.state;if(!s||!s.checkScanner){tab='r';
  tab=s.tab==='s'?'s':'r';prod=s.prod||null;cur=s.receiptId?R.findIndex(r=>r.id===s.receiptId):-1;ed=s.editing&&cur>=0?JSON.parse(JSON.stringify(R[cur])):null;show()});
 history.replaceState(navigationState(),'');
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-const toast=s=>{const t=$('#t');t.textContent=s;t.style.display='block';clearTimeout(t.i);t.i=setTimeout(()=>t.style.display='none',4000)};
+const toast=(s,act,fn)=>{const t=$('#t');t.textContent=s;if(act){const b=document.createElement('button');b.textContent=act;b.style.cssText='margin-left:12px;border-color:var(--bg);color:var(--bg);padding:4px 10px';b.onclick=()=>{t.style.display='none';fn()};t.append(b)}t.style.display='block';clearTimeout(t.i);t.i=setTimeout(()=>t.style.display='none',act?7000:4000)};
 const idb=n=>new Promise((ok,er)=>{const q=indexedDB.open(n,1);q.onupgradeneeded=()=>{q.result.createObjectStore('r',{keyPath:'id'});q.result.createObjectStore('p',{keyPath:'k'})};q.onsuccess=()=>ok(q.result);q.onerror=er});
 const tx=(s,m,f)=>new Promise((ok,er)=>{const t=db.transaction(s,m),r=f(t.objectStore(s));t.oncomplete=()=>ok(r.result);t.onerror=er});
 const key=n=>n.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9а-я%.]+/g,' ').trim();
@@ -119,6 +125,21 @@ function buildGR(){GR={};DN={};const L=META.links||{};for(const a in L){const c=
 const nmOf=(k,f)=>DN[k]||f||k;
 const pho=k=>{const c=canon(k);if(P[c])return P[c];for(const x of GR[c]||[])if(P[x])return P[x];return''};
 const pairId=(a,b)=>a<b?a+'|'+b:b+'|'+a;
+// ===== Preț pe litru / kg =====
+function pack(n){const s=n.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/,/g,'.');
+ const m=/(?:(\d+)\s*[x×*]\s*)?(\d+(?:\.\d+)?)\s*(kg|gr|g|ml|cl|l)(?![a-z])/.exec(s);if(!m)return null;
+ let v=parseFloat(m[2])*(m[1]?+m[1]:1);const t=s.slice(m.index+m[0].length).match(/^\s*[x×*]\s*(\d+)(?!\d|\.\d|\s*(?:kg|gr|g|ml|cl|l)(?![a-z]))/);if(t)v*=+t[1];
+ const u=m[3];if(!(v>0))return null;
+ if(u==='kg')return{v,k:'kg'};if(u==='g'||u==='gr')return{v:v/1000,k:'kg'};
+ if(u==='l')return{v,k:'L'};if(u==='ml')return{v:v/1000,k:'L'};return{v:v/100,k:'L'}}
+const fmtPack=p=>!p?'':p.v<1?Math.round(p.v*1000)+(p.k==='L'?' ml':' g'):(+p.v.toFixed(2))+(p.k==='L'?' L':' kg');
+// preț pe L/kg: din mărimea din nume, sau (la produse cântărite, cantitate cu zecimale) prețul e deja pe kg
+function unitP(n,q,u){const p=pack(n);if(p)return{p:u/p.v,k:p.k};if(q>0&&q%1!==0)return{p:u,k:'kg',w:1};return null}
+const buzz=()=>{try{navigator.vibrate&&navigator.vibrate(25)}catch(e){}};
+const snapMeta=()=>JSON.stringify({l:META.links,n:META.no});
+const undoTo=(sn,fn)=>async()=>{const o=JSON.parse(sn);META.links=o.l;META.no=o.n;await saveMeta();buildGR();(fn||(()=>linksView($('#m'))))()};
+addEventListener('keydown',e=>{if(e.key==='Escape'&&lk&&lk.sel){lk.sel=null;paintSel()}});
+
 const isLinked=k=>{const c=canon(k);return c!==k||(GR[c]||[]).length>0};
 async function mkLink(a,b){const ca=canon(a),cb=canon(b);if(ca===cb)return false;
  const keep=(P[cb]&&!P[ca])?cb:ca,drop=keep===ca?cb:ca;META.links=META.links||{};
@@ -136,19 +157,19 @@ async function setMain(k){const c=canon(k);if(c===k)return;const mem=[c,...(GR[c
 // ===== Sugestii automate =====
 const STOP=new Set(['buc','pcs','tip','set','gr','kg','pret']);
 const spec=n=>{const s=n.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/,/g,'.');
- const pc=(s.match(/(\d+(?:\.\d+)?)\s*%/)||[])[1];let sz=null;
- const m=s.match(/(\d+(?:\.\d+)?)\s*(kg|gr|g|ml|l)(?![a-z])/);
- if(m){let v=parseFloat(m[1]);const u=m[2];if(u==='kg'||u==='l')v*=1000;sz=Math.round(v)+(u==='l'||u==='ml'?'ml':'g')}
- const w=(s.replace(/(\d+(?:\.\d+)?)\s*(%|kg|gr|g|ml|l)(?![a-z])/g,' ').match(/[a-zа-я]{3,}/g)||[]).filter(x=>!STOP.has(x));
- return{pc:pc?+pc:null,sz,w}};
+ const pc=(s.match(/(\d+(?:\.\d+)?)\s*%/)||[])[1],pk=pack(n);
+ const w=(s.replace(/(\d+(?:\.\d+)?)\s*(%|kg|gr|g|ml|cl|l)(?![a-z])/g,' ').match(/[a-zа-я]{3,}/g)||[]).filter(x=>!STOP.has(x));
+ return{pc:pc?+pc:null,pk,w}};
 const bgm=s=>{const a=new Set();for(let i=0;i<s.length-1;i++)a.add(s.slice(i,i+2));return a};
+const samePk=(A,B)=>A.pk&&B.pk&&A.pk.k===B.pk.k&&Math.abs(A.pk.v-B.pk.v)<1e-9;
 function score(A,B){
- if(A.pc!=null&&B.pc!=null&&A.pc!==B.pc)return 0;if(A.sz&&B.sz&&A.sz!==B.sz)return 0;
+ if(A.pc!=null&&B.pc!=null&&A.pc!==B.pc)return 0;if(A.pk&&B.pk&&A.pk.k!==B.pk.k)return 0;
  const[sm1,lg]=A.w.length<=B.w.length?[A.w,B.w]:[B.w,A.w];let m=0;
  for(const x of sm1)if(lg.some(y=>x===y||(Math.min(x.length,y.length)>=4&&(x.startsWith(y)||y.startsWith(x)))))m++;
- if(m<2&&A.w.length!==B.w.length&&!(A.sz&&A.sz===B.sz))return 0;
+ if(m<2&&A.w.length!==B.w.length&&!samePk(A,B))return 0;
  let I=0;A.b.forEach(g=>{if(B.b.has(g))I++});const dice=2*I/((A.b.size+B.b.size)||1),sc=(m/sm1.length+dice)/2;
- return((A.pc==null)!==(B.pc==null)||(!A.sz)!==(!B.sz))?sc*.85:sc}
+ if(A.pk&&B.pk)return samePk(A,B)?sc:sc*.9;
+ return((A.pc==null)!==(B.pc==null)||(!A.pk)!==(!B.pk))?sc*.85:sc}
 function suggest(){
  const o={};R.filter(r=>!r.pending).forEach(r=>{const s=sk(r.store);r.items.forEach(i=>{const k=key(i.n),x=o[k]=o[k]||{k,n:i.n,st:new Set(),u:i.u,ts:0,sn:r.store};x.st.add(s);if(r.ts>=x.ts){x.ts=r.ts;x.u=i.u;x.n=i.n;x.sn=r.store}})});
  const L=Object.values(o).map(x=>({...x,...spec(x.n)})).filter(x=>x.w.length);
@@ -159,7 +180,7 @@ function suggest(){
   const A=L[a[p]],B=L[a[q]],id=pairId(A.k,B.k);if(seen.has(id))continue;seen.add(id);
   if(no.has(id)||canon(A.k)===canon(B.k))continue;
   if([...A.st].some(s=>B.st.has(s)))continue;
-  const sc=score(A,B);if(sc>=.62)out.push({a:A,b:B,sc,id})}}
+  const sc=score(A,B);if(sc>=.62)out.push({a:A,b:B,sc,id,diff:!!(A.pk&&B.pk&&!samePk(A,B))})}}
  out.sort((x,y)=>y.sc-x.sc);const cp=new Set();
  return out.filter(x=>{const c=pairId(canon(x.a.k),canon(x.b.k));if(cp.has(c))return false;cp.add(c);return true})}
 
@@ -180,8 +201,8 @@ function paintSel(){const gi=$('#lgi'),bar=$('#lbar');if(!gi||!bar)return;
  bar.style.display='flex';
  bar.innerHTML=`<span style="min-width:0">${esc(nmOf(lk.sel))}<br><small>Atinge alt produs ca să le legi</small></span><span style="display:flex;gap:8px">${isLinked(lk.sel)?'<button id="lu">Dezleagă</button>':''}<button id="lx">✕</button></span>`;
  $('#lx').onclick=()=>{lk.sel=null;paintSel()};
- if($('#lu'))$('#lu').onclick=async()=>{const k=lk.sel;lk.sel=null;await rmLink(k);toast('Dezlegat');linksView($('#m'))}}
-async function doLink(a,b){lk.sel=null;if(await mkLink(a,b))toast('Legat ✓ — pozele și istoricul se unesc');else toast('Sunt deja legate.');linksView($('#m'))}
+ if($('#lu'))$('#lu').onclick=async()=>{const k=lk.sel;lk.sel=null;const sn=snapMeta();await rmLink(k);toast('Dezlegat','Anulează',undoTo(sn));linksView($('#m'))}}
+async function doLink(a,b){lk.sel=null;const sn=snapMeta();if(await mkLink(a,b)){buzz();toast('Legat ✓ — pozele și istoricul se unesc','Anulează',undoTo(sn))}else toast('Sunt deja legate.');linksView($('#m'))}
 function tapCell(k){if(!lk.sel){lk.sel=k;return paintSel()}if(lk.sel===k){lk.sel=null;return paintSel()}const a=lk.sel;lk.sel=null;doLink(a,k)}
 function dragBind(dot,cell){let on=0,tp=null,iv=null,px=0,py=0,hv=null;const gi=$('#lgi'),sg=$('#lgs');
  const upd=()=>{if(!tp)return;const b=gi.getBoundingClientRect(),r=cell.getBoundingClientRect(),rt=dot.classList.contains('r'),
@@ -207,20 +228,20 @@ function linksView(m){
  m.insertAdjacentHTML('beforeend',`<div class="card"><b>Magazine</b><div class="mute">Alege ce magazine compari. Ordinea bifării = ordinea coloanelor.</div>
  <div class="chips">${all.map(o=>`<button class="chip ${pins.includes(o.s)?'on':''}" data-chip="${esc(o.s)}">${esc(o.n)} · ${o.c}</button>`).join('')}</div></div>
  ${sug.length?`<div class="card"><b>Sugestii automate (${sug.length})</b><div class="mute">Aceleași produse, nume diferite. Confirmă doar ce e corect.</div>
- ${sug.slice(0,lk.more?30:lim).map((x,i)=>`<div class="sg"><div class="sgp">${sgi(x.a)}<span class="mute">↔</span>${sgi(x.b)}</div><div class="sga"><button data-no="${i}">✕ Nu</button><button class="p" data-ok="${i}">✓ Unește</button></div></div>`).join('')}
+ ${sug.slice(0,lk.more?30:lim).map((x,i)=>`<div class="sg"><div class="sgp">${sgi(x.a)}<span class="mute">↔</span>${sgi(x.b)}</div>${x.diff?`<div class="mute" style="font-size:12px;margin-top:6px">⚠ Mărimi diferite (${fmtPack(x.a.pk)} / ${fmtPack(x.b.pk)}). Prețurile se compară pe ${x.a.pk.k==='L'?'litru':'kg'}.</div>`:''}<div class="sga"><button data-no="${i}">✕ Nu</button><button class="p" data-ok="${i}">✓ Unește</button></div></div>`).join('')}
  ${sug.length>lim?`<button id="smore" style="margin-top:8px">${lk.more?'Mai puține':'Arată mai multe'}</button>`:''}</div>`:''}
  <div class="row" style="gap:10px;margin-top:12px"><input id="lq" class="in" type="search" placeholder="🔍 Filtrează produsele" value="${esc(lk.q)}" style="margin:0"><label class="mute" style="display:flex;gap:6px;align-items:center;white-space:nowrap"><input type="checkbox" id="lun" ${lk.un?'checked':''}> doar nelegate</label></div>
  <div class="mute" style="font-size:13px;margin-top:8px">${n<2?'Bifează încă un magazin ca să vezi liniile între ele. ':''}Trage punctul ● de la un produs la altul sau atinge două produse pe rând. 📈 = istoricul prețului.</div>
  <div class="lgw"><div class="lgi" id="lgi"><svg class="lgs" id="lgs"></svg><div class="lgc" id="lgc"></div></div></div><div id="lbar"></div>`);
  function grid(){const q=key(lk.q),nd={},cnt={};pins.forEach(s=>nd[s]={});
-  rs.slice().reverse().forEach(r=>{const s=sk(r.store);if(!nd[s])return;r.items.forEach(i=>{const k=key(i.n),o=nd[s][k]=nd[s][k]||{k};o.n=i.n;o.u=i.u})});
+  rs.slice().reverse().forEach(r=>{const s=sk(r.store);if(!nd[s])return;r.items.forEach(i=>{const k=key(i.n),o=nd[s][k]=nd[s][k]||{k};o.n=i.n;o.u=i.u;o.q=i.q})});
   pins.forEach(s=>Object.keys(nd[s]).forEach(k=>cnt[k]=(cnt[k]||0)+1));
   const cols=pins.map(s=>{let a=Object.values(nd[s]);
    if(q)a=a.filter(o=>o.k.includes(q)||canon(o.k).includes(q));
    if(lk.un)a=a.filter(o=>!isLinked(o.k)&&cnt[o.k]<2);
    a.sort((x,y)=>x.k<y.k?-1:x.k>y.k?1:0);return{s,n:S0[s].n,a}});
-  const cell=(o,ci)=>{const c=canon(o.k),g=isLinked(o.k)||cnt[o.k]>1,ph=pho(o.k),last=ci===n-1&&n>1;
-   return`<div class="lc${last?' dl':''}" data-k="${esc(o.k)}" data-c="${esc(c)}" data-col="${ci}"${g?` style="border-left-color:${hc(c)}"`:''}>${ph?`<img class="ph" src="${ph}">`:''}<div class="tx"><div class="nn">${esc(o.n)}</div><div class="pr"><span class="m">${lei(o.u)}</span><button class="inf" title="Istoric preț">📈</button></div></div><button class="dot ${last?'l':'r'}" aria-label="Trage o linie spre alt produs"></button></div>`};
+  const cell=(o,ci)=>{const up=unitP(o.n,o.q,o.u),c=canon(o.k),g=isLinked(o.k)||cnt[o.k]>1,ph=pho(o.k),last=ci===n-1&&n>1;
+   return`<div class="lc${last?' dl':''}" data-k="${esc(o.k)}" data-c="${esc(c)}" data-col="${ci}"${g?` style="border-left-color:${hc(c)}"`:''}>${ph?`<img class="ph" src="${ph}">`:''}<div class="tx"><div class="nn">${esc(o.n)}</div><div class="pr"><span class="m">${lei(o.u)}</span><button class="inf" title="Istoric preț">📈</button></div>${up?`<div class="up m">${lei(up.p)}/${up.k}</div>`:''}</div><button class="dot ${last?'l':'r'}" aria-label="Trage o linie spre alt produs"></button></div>`};
   $('#lgc').style.gridTemplateColumns=`repeat(${n},minmax(0,1fr))`;$('#lgi').style.minWidth=(n*150+(n-1)*36)+'px';
   $('#lgc').innerHTML=cols.map((c,ci)=>`<div class="lcol"><div class="lgh">${esc(c.n)} <span class="mute" style="font-weight:400">· ${c.a.length}</span></div>${c.a.map(o=>cell(o,ci)).join('')||'<div class="mute">Nimic de arătat.</div>'}</div>`).join('');
   $('#lgi').querySelectorAll('.lc').forEach(e=>{
@@ -229,7 +250,7 @@ function linksView(m){
    dragBind(e.querySelector('.dot'),e)});
   lines();paintSel()}
  m.querySelectorAll('[data-chip]').forEach(b=>b.onclick=()=>{const s=b.dataset.chip;META.pinned=pins.includes(s)?pins.filter(x=>x!==s):[...pins,s];saveMeta();lk.sel=null;linksView(m)});
- m.querySelectorAll('[data-ok]').forEach(b=>b.onclick=async()=>{const x=sug[+b.dataset.ok];await mkLink(x.a.k,x.b.k);toast('Legat ✓');linksView(m)});
+ m.querySelectorAll('[data-ok]').forEach(b=>b.onclick=async()=>{const x=sug[+b.dataset.ok];const sn=snapMeta();await mkLink(x.a.k,x.b.k);buzz();toast('Legat ✓','Anulează',undoTo(sn,()=>linksView(m)));linksView(m)});
  m.querySelectorAll('[data-no]').forEach(b=>b.onclick=async()=>{const x=sug[+b.dataset.no];(META.no=META.no||[]).push(x.id);await saveMeta();linksView(m)});
  if($('#smore'))$('#smore').onclick=()=>{lk.more=!lk.more;linksView(m)};
  $('#lq').oninput=e=>{lk.q=e.target.value;grid()};$('#lun').onchange=e=>{lk.un=e.target.checked;grid()};
@@ -281,9 +302,9 @@ function show(){const m=$('#m');m.classList.remove('screen-in','wide');void m.of
  if(cur<0){return listView(m)}
  const r=R[cur];if(ed&&ed.id===r.id)return editView(m,r);
  m.innerHTML=`<div class="nav"><button id="bk">‹ Toate</button><span class="mute">${cur+1} / ${R.length}</span><span><button id="pv" ${cur>=R.length-1?'disabled':''}>‹</button> <button id="nx" ${cur<1?'disabled':''}>›</button></span></div>
- <div class="card"><button id="eb" style="float:right;padding:4px 10px">✎ Editează</button><b>${esc(r.store)}</b>${r.demo?' <span class="mute">(demo)</span>':''}<div class="mute">${fmt(r)}${r.no?' · bon №'+r.no:''}</div>${r.pending?'<p>Produsele nu au fost încă citite.'+((r.err||lastErr[r.id])?'<br><span class="mute">Motiv: '+esc(r.err||lastErr[r.id])+'</span>':'')+(r.link?'<br><span class="mute m" style="word-break:break-all;font-size:12px">'+esc(r.link)+'</span>':'')+'</p><button id="rt" class="p">Încearcă din nou</button> <button id="pt">Lipește textul</button>':''}
+ <div class="card"><button id="eb" style="float:right;padding:4px 10px">✎ Editează</button><b>${esc(r.store)}</b>${r.demo?' <span class="mute">(demo)</span>':''}<div class="mute">${fmt(r)}${r.no?' · bon №<span class="cp">'+esc(r.no)+'</span>':''}</div>${r.pending?'<p>Produsele nu au fost încă citite.'+((r.err||lastErr[r.id])?'<br><span class="mute cp">Motiv: '+esc(r.err||lastErr[r.id])+'</span>':'')+(r.link?'<br><span class="mute m cp" style="word-break:break-all;font-size:12px">'+esc(r.link)+'</span>':'')+'</p><button id="rt" class="p">Încearcă din nou</button> <button id="pt">Lipește textul</button>':''}
  ${r.items.map(i=>{const k=ck(i.n),ph=pho(k);return`<div class="it"><${ph?`img class="ph" src="${ph}"`:'button class="ph"'} data-k="${esc(k)}">${ph?'':'+'}</${ph?'img':'button'}><div class="n" data-p="${esc(k)}">${esc(i.n)}<div class="mute m">${i.q} × ${lei(i.u)}</div></div><span class="m">${lei(i.t)}</span></div>`}).join('')}
- <div class="row" style="margin-top:10px"><span>Total</span><span class="tot m">${lei(r.total)}</span></div></div>
+ <div class="row" style="margin-top:10px"><span>Total</span><span class="tot m cp">${lei(r.total)}</span></div></div>
  <div class="row"><a href="${esc(r.link||'#')}" target="_blank" class="mute">Deschide cecul online</a>${r.demo?'':'<button id="rm">Șterge</button>'}</div>`;
  $('#bk').onclick=()=>history.back();$('#pv').onclick=()=>{cur++;show()};$('#nx').onclick=()=>{cur--;show()};
  if($('#rm'))$('#rm').onclick=async()=>{if(confirm('Ștergi cecul?')){await save({id:r.id,deleted:true,items:[],ts:r.ts});await load();cur=-1;show()}};
@@ -310,8 +331,8 @@ function stats(){const m=$('#m');m.classList.toggle('wide',!prod&&sv==='l');if(p
  const mx=Math.max(1,...days.map(x=>x.v)),last=new Date(b.getFullYear(),b.getMonth(),b.getDate()-1);
  const title=sm==='m'?dl(a,{month:'long',year:'numeric'}):dl(a,{day:'numeric',month:'short'})+' – '+dl(last,{day:'numeric',month:'short'});
  const pr={},st={};cm.forEach(r=>{st[r.store]=(st[r.store]||0)+r.total;r.items.forEach(i=>{const k=ck(i.n),p=pr[k]=pr[k]||{n:nmOf(k,i.n),k,c:0,t:0};p.c+=i.q;p.t+=i.t})});const pl=Object.values(pr);const cs={};cm.forEach(r=>r.items.forEach(i=>{const c=cat(ck(i.n));cs[c]=(cs[c]||0)+i.t}));const ct=Object.entries(cs).sort((x,y)=>y[1]-x[1]),cx=ct.length?ct[0][1]:1;
- const h={};rs.slice().sort((x,y)=>x.ts-y.ts).forEach(r=>r.items.forEach(i=>{const k=ck(i.n),hk=k+'|'+r.store;(h[hk]=h[hk]||{n:nmOf(k,i.n),k,s:r.store,a:[]}).a.push(i.u)}));const ns=new Set(rs.map(r=>sk(r.store))).size;
- const ch=Object.values(h).filter(x=>x.a.length>1).map(x=>{const l=x.a[x.a.length-1],q=x.a[x.a.length-2];return{...x,l,q,d:(l-q)/q*100}}).filter(x=>Math.abs(x.d)>=1).sort((x,y)=>Math.abs(y.d)-Math.abs(x.d)).slice(0,5);
+ const h={};rs.slice().sort((x,y)=>x.ts-y.ts).forEach(r=>r.items.forEach(i=>{const k=ck(i.n),hk=k+'|'+r.store;const z=h[hk]=h[hk]||{n:nmOf(k,i.n),k,s:r.store,a:[],b:[]};z.a.push(i.u);z.b.push(unitP(i.n,i.q,i.u))}));const ns=new Set(rs.map(r=>sk(r.store))).size;
+ const ch=Object.values(h).filter(x=>x.a.length>1).map(x=>{const un=x.b.every(v=>v&&v.k===x.b[0].k),A=un?x.b.map(v=>v.p):x.a,l=A[A.length-1],q=A[A.length-2];return{...x,l,q,sfx:un?'/'+x.b[0].k:'',d:(l-q)/q*100}}).filter(x=>Math.abs(x.d)>=1).sort((x,y)=>Math.abs(y.d)-Math.abs(x.d)).slice(0,5);
  const ds=pv>0?`${tm>=pv?'+':''}${Math.round((tm-pv)/pv*100)}% față de ${sm==='m'?'luna':'săptămâna'} trecută${sm==='m'?'':''}`:'';
  m.innerHTML=svSeg()+`<div class="seg"><button data-sm="w" class="${sm==='w'?'on':''}">Săptămână</button><button data-sm="m" class="${sm==='m'?'on':''}">Lună</button></div>
  <div class="nav"><button id="mp">‹</button><b style="text-transform:capitalize">${title}</b><button id="mn" ${b>new Date()?'disabled':''}>›</button></div>
@@ -323,33 +344,41 @@ function stats(){const m=$('#m');m.classList.toggle('wide',!prod&&sv==='l');if(p
  ${cm.length?`<h3 class="sec">Unde ai cheltuit cel mai mult</h3><div class="card">${pl.sort((x,y)=>y.t-x.t).slice(0,8).map(p=>row(p,'× '+p.c,lei(p.t))).join('')}</div>
  <h3 class="sec">Cumpărate cel mai des</h3><div class="card">${pl.sort((x,y)=>y.c-x.c).slice(0,5).map(p=>row(p,lei(p.t)+' lei în total','× '+p.c)).join('')}</div>
  ${Object.keys(st).length>1?`<h3 class="sec">După magazin</h3><div class="card">${Object.entries(st).sort((x,y)=>y[1]-x[1]).map(([k,v])=>`<div class="row sr"><span>${esc(k)}</span><b class="m">${lei(v)}</b></div>`).join('')}</div>`:''}`:'<p class="mute">Niciun cec în perioada aceasta.</p>'}
- ${ch.length?`<h3 class="sec">Prețuri care s-au schimbat</h3><div class="card">${ch.map(x=>row(x,(ns>1?esc(x.s)+' · ':'')+lei(x.q)+' → '+lei(x.l)+' lei',(x.d>0?'▲ ':'▼ ')+Math.abs(x.d).toFixed(0)+'%',x.d>0?'up':'dn')).join('')}</div>`:''}`;
+ ${ch.length?`<h3 class="sec">Prețuri care s-au schimbat</h3><div class="card">${ch.map(x=>row(x,(ns>1?esc(x.s)+' · ':'')+lei(x.q)+' → '+lei(x.l)+' lei'+(x.sfx||''),(x.d>0?'▲ ':'▼ ')+Math.abs(x.d).toFixed(0)+'%',x.d>0?'up':'dn')).join('')}</div>`:''}`;
  m.querySelectorAll('[data-sm]').forEach(e=>e.onclick=()=>{sm=e.dataset.sm;pd=Date.now();stats()});
  m.querySelectorAll('[data-i]').forEach(e=>e.onclick=()=>{const x=days[+e.dataset.i];$('#cap').textContent=dl(x.d,{weekday:'long',day:'numeric',month:'long'})+': '+(x.n?lei(x.v)+' lei · '+x.n+(x.n>1?' cecuri':' cec'):'fără cumpărături')});
  $('#mp').onclick=()=>{shift(-1);stats()};$('#mn').onclick=()=>{shift(1);stats()};bindSv(m);bind(m)}
+let pu=null;
 function product(m){prod=canon(prod);const k=prod,e=[];
- R.filter(r=>!r.pending).forEach(r=>r.items.forEach(i=>{if(ck(i.n)===k)e.push({r,i})}));
+ R.filter(r=>!r.pending).forEach(r=>r.items.forEach(i=>{if(ck(i.n)===k)e.push({r,i,up:unitP(i.n,i.q,i.u)})}));
  if(!e.length){prod=null;return stats()}
- e.sort((x,y)=>y.r.ts-x.r.ts);const nm=nmOf(k,e[0].i.n),q=e.reduce((s,x)=>s+x.i.q,0),t=e.reduce((s,x)=>s+x.i.t,0),us=e.map(x=>x.i.u),mn=Math.min(...us),mx=Math.max(...us);
- const asc=e.slice().reverse(),gap=asc.length>1?Math.round((asc[asc.length-1].r.ts-asc[0].r.ts)/864e5/(asc.length-1)):0,sp=mx-mn||1;
- const pv=e.slice(1).find(x=>sk(x.r.store)===sk(e[0].r.store)),dd=pv?(us[0]-pv.i.u)/pv.i.u*100:0,ph=pho(k);
+ e.sort((x,y)=>y.r.ts-x.r.ts);const nm=nmOf(k,e[0].i.n),q=e.reduce((s,x)=>s+x.i.q,0),t=e.reduce((s,x)=>s+x.i.t,0),ph=pho(k);
+ const kc={};e.forEach(x=>{if(x.up)kc[x.up.k]=(kc[x.up.k]||0)+1});const uk=Object.keys(kc).sort((a,b)=>kc[b]-kc[a])[0]||null;
+ const canU=!!uk&&kc[uk]>=Math.ceil(e.length/2),allW=canU&&e.every(x=>x.up&&x.up.w),sizes=new Set(e.map(x=>{const p=pack(x.i.n);return p?p.k+p.v:'w'}));
+ const mode=canU?(allW?'u':(pu||(sizes.size>1?'u':'b'))):'b',sfx=mode==='u'?'/'+uk:'';
+ const val=x=>mode==='u'?(x.up&&x.up.k===uk?x.up.p:null):x.i.u,E=e.filter(x=>val(x)!=null),vs=E.map(val),mn=Math.min(...vs),mx=Math.max(...vs),sp=mx-mn||1;
+ const all=e.slice().reverse(),gap=all.length>1?Math.round((all[all.length-1].r.ts-all[0].r.ts)/864e5/(all.length-1)):0,asc=E.slice().reverse();
+ const pv=E.slice(1).find(x=>sk(x.r.store)===sk(E[0].r.store)),dd=pv?(vs[0]-val(pv))/val(pv)*100:0;
  const SC=['var(--acc)','#ea580c','#3b82f6','#d946ef','#eab308','#14b8a6'],t0=asc[0].r.ts,t1=asc[asc.length-1].r.ts,tsp=t1-t0||1;
  const ser=[...new Set(asc.map(x=>sk(x.r.store)))].map((s,j)=>{const a=asc.filter(x=>sk(x.r.store)===s);
-  return{n:a[a.length-1].r.store,c:SC[j%SC.length],l:a[a.length-1].i.u,pts:a.map(x=>[t1===t0?150:2+(x.r.ts-t0)/tsp*296,66-(x.i.u-mn)/sp*58])}});
+  return{n:a[a.length-1].r.store,c:SC[j%SC.length],l:val(a[a.length-1]),pts:a.map(x=>[t1===t0?150:2+(x.r.ts-t0)/tsp*296,66-(val(x)-mn)/sp*58])}});
  const nm2={};e.forEach(x=>{const kk=key(x.i.n),o=nm2[kk]=nm2[kk]||{k:kk,n:x.i.n,s:new Set()};o.s.add(x.r.store)});const names=Object.values(nm2);
+ const ttl=mode==='u'?(uk==='L'?'Preț pe litru':'Preț pe kg'):'Preț pe bucată';
  m.innerHTML=`<div class="nav"><button id="pb">‹ Înapoi</button><span></span></div>
  <div class="card" style="text-align:center"><span data-ph="${esc(k)}" style="justify-content:center">${ph?`<img class="ph" style="width:120px;height:120px" src="${ph}">`:'<span class="ph" style="width:120px;height:120px;font-size:34px">+</span>'}</span>
  <h2 style="margin:10px 0 2px;font-size:18px">${esc(nm)}</h2><div class="mute">${e.length} ${e.length>1?'cumpărări':'cumpărare'}${gap?' · cam o dată la '+gap+' zile':''}</div><select id="pc" class="in" style="margin-top:10px">${CATS.map(c=>`<option${c===cat(k)?' selected':''}>${c}</option>`).join('')}</select></div>
  <div class="kp"><div class="card"><b>${lei(t)}</b><span class="mute">cheltuit</span></div><div class="card"><b>${+q.toFixed(3)}</b><span class="mute">cantitate</span></div><div class="card"><b>${lei(t/q)}</b><span class="mute">preț mediu</span></div></div>
- <div class="card"><div class="row"><b>Preț pe bucată</b><span class="mute">ultimul ${lei(us[0])}${Math.abs(dd)>=1?` <b class="${dd>0?'up':'dn'}">${dd>0?'▲':'▼'} ${Math.abs(dd).toFixed(0)}%</b>`:''}</span></div>
- <div class="mute">minim ${lei(mn)} · maxim ${lei(mx)}</div>
- ${e.length>1?`<svg viewBox="0 0 300 70" style="width:100%;height:80px;margin-top:6px">${ser.map(z=>`<polyline points="${z.pts.map(p=>p.join(',')).join(' ')}" fill="none" style="stroke:${z.c}" stroke-width="2"/>${z.pts.map(p=>`<circle cx="${p[0]}" cy="${p[1]}" r="3" style="fill:${z.c}"/>`).join('')}`).join('')}</svg>`:''}
- ${ser.length>1?`<div class="mute" style="display:flex;gap:6px 14px;flex-wrap:wrap;margin-top:6px">${ser.map(z=>`<span><i style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${z.c}"></i> ${esc(z.n)} ${lei(z.l)}</span>`).join('')}</div>`:''}</div>
+ <div class="card"><div class="row"><b>${ttl}</b><span class="mute">ultimul ${lei(vs[0])}${sfx}${Math.abs(dd)>=1?` <b class="${dd>0?'up':'dn'}">${dd>0?'▲':'▼'} ${Math.abs(dd).toFixed(0)}%</b>`:''}</span></div>
+ <div class="mute">minim ${lei(mn)}${sfx} · maxim ${lei(mx)}${sfx}</div>
+ ${canU&&!allW?`<div class="pm"><button data-pu="b" class="${mode==='b'?'on':''}">Pe bucată</button><button data-pu="u" class="${mode==='u'?'on':''}">Pe ${uk==='L'?'litru':'kg'}</button></div>`:''}
+ ${E.length>1?`<svg viewBox="0 0 300 70" style="width:100%;height:80px;margin-top:6px">${ser.map(z=>`<polyline points="${z.pts.map(p=>p.join(',')).join(' ')}" fill="none" style="stroke:${z.c}" stroke-width="2"/>${z.pts.map(p=>`<circle cx="${p[0]}" cy="${p[1]}" r="3" style="fill:${z.c}"/>`).join('')}`).join('')}</svg>`:''}
+ ${ser.length>1?`<div class="mute" style="display:flex;gap:6px 14px;flex-wrap:wrap;margin-top:6px">${ser.map(z=>`<span><i style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${z.c}"></i> ${esc(z.n)} ${lei(z.l)}${sfx}</span>`).join('')}</div>`:''}</div>
  ${names.length>1?`<h3 class="sec">Nume unite</h3><div class="card">${names.map(o=>`<div class="sr"><div class="n">${esc(o.n)}${o.k===k?' <span class="mute">★ principal</span>':''}<div class="mute">${[...o.s].map(esc).join(', ')}</div></div>${o.k===k?'':`<button data-mn="${esc(o.k)}" title="Fă-l numele principal">★</button> `}<button data-ul="${esc(o.k)}">Dezleagă</button></div>`).join('')}</div>`:''}
- <h3 class="sec">Când l-ai cumpărat</h3><div class="card">${e.map(x=>`<div class="sr" data-r="${esc(x.r.id)}" style="cursor:pointer"><div class="n">${dl(x.r.ts,{day:'numeric',month:'long',year:'numeric'})}<div class="mute">${esc(x.r.store)} · ${x.i.q} × ${lei(x.i.u)}</div></div><b class="m">${lei(x.i.t)}</b></div>`).join('')}</div>`;
+ <h3 class="sec">Când l-ai cumpărat</h3><div class="card">${e.map(x=>`<div class="sr" data-r="${esc(x.r.id)}" style="cursor:pointer"><div class="n">${dl(x.r.ts,{day:'numeric',month:'long',year:'numeric'})}<div class="mute">${esc(x.r.store)} · ${x.i.q} × ${lei(x.i.u)}${x.up&&!x.up.w?' · '+lei(x.up.p)+'/'+x.up.k:''}</div></div><b class="m">${lei(x.i.t)}</b></div>`).join('')}</div>`;
  $('#pc').onchange=ev=>{META.cats[k]=ev.target.value;saveMeta()};
  $('#pb').onclick=()=>history.back();
- m.querySelectorAll('[data-ul]').forEach(b=>b.onclick=async()=>{await rmLink(b.dataset.ul);toast('Dezlegat');product(m)});
+ m.querySelectorAll('[data-pu]').forEach(b=>b.onclick=()=>{pu=b.dataset.pu;product(m)});
+ m.querySelectorAll('[data-ul]').forEach(b=>b.onclick=async()=>{const sn=snapMeta();await rmLink(b.dataset.ul);toast('Dezlegat','Anulează',undoTo(sn,()=>product(m)));product(m)});
  m.querySelectorAll('[data-mn]').forEach(b=>b.onclick=async()=>{await setMain(b.dataset.mn);product(m)});
  m.querySelectorAll('[data-r]').forEach(el=>el.onclick=()=>{const ix=R.findIndex(r=>r.id===el.dataset.r);if(ix>=0)openReceipt(ix)});bind(m)}
 const CATS=['Lactate și ouă','Pâine și patiserie','Fructe și legume','Carne și pește','Băuturi','Dulciuri și snacks','Curățenie și casă','Igienă','Altele'];
@@ -387,9 +416,9 @@ function editView(m,r){const e=ed,tot=()=>e.items.reduce((s,i)=>s+i.t,0),z=n=>St
  $('#es').onclick=async()=>{e.items=e.items.filter(i=>i.n.trim());e.items.forEach(i=>i.n=i.n.trim());e.store=(e.store||'').trim()||'Magazin';e.pending=!e.items.length&&!!e.link;const id=e.id;await save(e);await load();cur=R.findIndex(y=>y.id===id);ed=null;history.back()}}
 function ideas(m){
  const rs=R.filter(r=>!r.pending),now=Date.now(),DAY=864e5,sum=l=>l.reduce((s,r)=>s+r.total,0),avg=a=>a.reduce((s,x)=>s+x,0)/a.length;
- const h={};rs.forEach(r=>r.items.forEach(i=>{const k=ck(i.n),o=h[k]=h[k]||{n:nmOf(k,i.n),k,ts:[],st:{}};o.ts.push(r.ts);(o.st[r.store]=o.st[r.store]||[]).push(i.u)}));
+ const h={};rs.forEach(r=>r.items.forEach(i=>{const k=ck(i.n),o=h[k]=h[k]||{n:nmOf(k,i.n),k,ts:[],st:{},su:{},uk:new Set()},up=unitP(i.n,i.q,i.u);o.ts.push(r.ts);(o.st[r.store]=o.st[r.store]||[]).push(i.u);if(up){(o.su[r.store]=o.su[r.store]||[]).push(up.p);o.uk.add(up.k)}else o.uk.add('-')}));
  const sug=Object.values(h).map(o=>{const t=[...new Set(o.ts.map(x=>D0(new Date(x)).getTime()))].sort((a,b)=>a-b);if(t.length<2)return null;const gap=(t[t.length-1]-t[0])/(t.length-1)/DAY,since=(now-t[t.length-1])/DAY;return{...o,gap,since,r:since/Math.max(gap,1)}}).filter(o=>o&&o.r>=.8&&!META.shop.some(s=>s.k===o.k)).sort((a,b)=>b.r-a.r).slice(0,6);
- const cheap=Object.values(h).map(o=>{const e=Object.entries(o.st).map(([s,a])=>[s,avg(a)]).sort((a,b)=>a[1]-b[1]);if(e.length<2)return null;const d=(e[e.length-1][1]-e[0][1])/e[e.length-1][1]*100;return d>=5?{...o,e,d}:null}).filter(Boolean).sort((a,b)=>b.d-a.d).slice(0,5);
+ const cheap=Object.values(h).map(o=>{const ok=Object.keys(o.st).every(s=>o.su[s]&&o.su[s].length===o.st[s].length)&&o.uk.size===1,sfx=ok?'/'+[...o.uk][0]:'',e=Object.entries(ok?o.su:o.st).map(([s,a])=>[s,avg(a)]).sort((a,b)=>a[1]-b[1]);if(e.length<2)return null;const d=(e[e.length-1][1]-e[0][1])/e[e.length-1][1]*100;return d>=5?{...o,e,d,sfx}:null}).filter(Boolean).sort((a,b)=>b.d-a.d).slice(0,5);
  const nw=new Date(),ms=new Date(nw.getFullYear(),nw.getMonth(),1).getTime(),dim=new Date(nw.getFullYear(),nw.getMonth()+1,0).getDate(),sp=sum(rs.filter(r=>r.ts>=ms)),proj=sp/nw.getDate()*dim,bg=META.budget;
  const wd=[0,0,0,0,0,0,0];rs.forEach(r=>wd[(new Date(r.ts).getDay()+6)%7]++);const nm=['luni','marți','miercuri','joi','vineri','sâmbătă','duminică'],bw=wd.indexOf(Math.max(...wd)),l4=rs.filter(r=>r.ts>now-28*DAY),big=rs.slice().sort((a,b)=>b.total-a.total)[0];
  m.innerHTML=svSeg()+`<h3 class="sec" style="margin-top:6px">Lista de cumpărături</h3><div class="card">
@@ -398,7 +427,7 @@ function ideas(m){
  ${sug.length?`<div class="card"><b>Probabil îți trebuie</b>${sug.map(o=>`<div class="sr"><div class="n" data-p="${esc(o.k)}">${esc(o.n)}<div class="mute">cam la ${Math.round(o.gap)} zile · ultima dată acum ${Math.round(o.since)} zile</div></div><button data-a="${esc(o.k)}">＋ listă</button></div>`).join('')}</div>`:''}
  <h3 class="sec">Buget lunar</h3><div class="card"><div class="row" style="gap:8px"><input id="bg" class="in" type="number" inputmode="decimal" placeholder="Buget în lei / lună" value="${bg||''}" style="margin:0"><button id="bgs" class="p">Setează</button></div>
  ${bg?`<div class="row" style="margin-top:10px"><span>Cheltuit luna aceasta</span><b class="m">${lei(sp)} / ${lei(bg)}</b></div><div class="pb ${sp>bg?'over':''}"><i style="width:${Math.min(100,sp/bg*100)}%"></i></div><div class="mute" style="margin-top:6px">Estimare la sfârșitul lunii: ${lei(proj)} lei${proj>bg?' (peste buget)':''}</div>`:'<div class="mute" style="margin-top:6px">Setează o sumă ca să vezi cât ți-a mai rămas.</div>'}</div>
- ${cheap.length?`<h3 class="sec">Unde e mai ieftin</h3><div class="card">${cheap.map(o=>row(o,esc(o.e[0][0])+' '+lei(o.e[0][1])+' · '+esc(o.e[o.e.length-1][0])+' '+lei(o.e[o.e.length-1][1]),'−'+o.d.toFixed(0)+'%','dn')).join('')}</div>`:''}
+ ${cheap.length?`<h3 class="sec">Unde e mai ieftin</h3><div class="card">${cheap.map(o=>row(o,esc(o.e[0][0])+' '+lei(o.e[0][1])+o.sfx+' · '+esc(o.e[o.e.length-1][0])+' '+lei(o.e[o.e.length-1][1])+o.sfx,'−'+o.d.toFixed(0)+'%','dn')).join('')}</div>`:''}
  ${rs.length?`<h3 class="sec">Obiceiurile tale</h3><div class="card"><div class="row sr"><span>Ziua preferată pentru cumpărături</span><b>${nm[bw]}</b></div><div class="row sr"><span>Cecuri pe săptămână (ultimele 4)</span><b>${(l4.length/4).toFixed(1)}</b></div><div class="row sr"><span>Cheltuit pe săptămână (ultimele 4)</span><b class="m">${lei(sum(l4)/4)}</b></div><div class="row sr"><span>Cel mai mare cec</span><b class="m">${lei(big.total)}</b></div></div>`:''}`;
  m.querySelectorAll('[data-c]').forEach(c=>c.onchange=()=>{META.shop[+c.dataset.c].d=c.checked?1:0;saveMeta();ideas(m)});
  m.querySelectorAll('[data-rm]').forEach(b=>b.onclick=()=>{META.shop.splice(+b.dataset.rm,1);saveMeta();ideas(m)});
