@@ -81,6 +81,42 @@ input,textarea,select,[contenteditable],.cp,.cp *{-webkit-user-select:text;user-
 img{-webkit-user-drag:none}
 .lc .up{font-size:11px;color:var(--mute);margin-top:1px}
 .pm{display:flex;gap:6px;margin:8px 0 2px}.pm button{padding:4px 12px;font-size:14px;border-radius:16px}.pm .on{background:var(--acc);color:var(--paper)}
+
+/* ===== animații & finisaje ===== */
+:root{--e:cubic-bezier(.22,1,.36,1)}
+button{transition:background-color .18s,color .18s,border-color .18s,transform .14s var(--e),opacity .18s}
+button:active:not(:disabled){transform:scale(.95)}
+.card[data-i]{cursor:pointer;transition:transform .16s var(--e),box-shadow .25s}
+.card[data-i]:active{transform:scale(.985)}
+@media(hover:hover){.card[data-i]:hover{box-shadow:0 6px 22px #0000001a;transform:translateY(-1px)}}
+#m.screen-in{animation:none}
+h1{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+header{view-transition-name:hdr}#bn{view-transition-name:nav}#t{view-transition-name:toast}
+::view-transition-old(root),::view-transition-new(root){animation-duration:.34s;animation-timing-function:var(--e);animation-fill-mode:both}
+html[data-vt=fwd]::view-transition-old(root){animation-name:vt-out-l}html[data-vt=fwd]::view-transition-new(root){animation-name:vt-in-r}
+html[data-vt=back]::view-transition-old(root){animation-name:vt-out-r}html[data-vt=back]::view-transition-new(root){animation-name:vt-in-l}
+html[data-vt=fade]::view-transition-old(root){animation-name:vt-out-f}html[data-vt=fade]::view-transition-new(root){animation-name:vt-in-f}
+@keyframes vt-out-l{to{opacity:0;transform:translateX(-36px)}}@keyframes vt-in-r{from{opacity:0;transform:translateX(36px)}}
+@keyframes vt-out-r{to{opacity:0;transform:translateX(36px)}}@keyframes vt-in-l{from{opacity:0;transform:translateX(-36px)}}
+@keyframes vt-out-f{to{opacity:0}}@keyframes vt-in-f{from{opacity:0;transform:translateY(10px)}}
+#m.in-fwd{animation:vt-in-r .34s var(--e)}#m.in-back{animation:vt-in-l .34s var(--e)}#m.in-fade{animation:vt-in-f .3s var(--e)}
+@keyframes fadein{from{opacity:0}}@keyframes pop{from{opacity:0;transform:translateY(14px) scale(.97)}}@keyframes zoomin{from{opacity:0;transform:scale(.92)}}
+@keyframes grow{from{width:0}}@keyframes growy{from{height:0}}@keyframes draw{to{stroke-dashoffset:0}}
+.swap{animation:fadein .28s var(--e)}
+dialog[open]{animation:pop .26s var(--e)}dialog[open]::backdrop{animation:fadein .26s ease-out}
+#lb:not([hidden]),#sc:not([hidden]){animation:fadein .22s ease-out}#lb:not([hidden]) #li{animation:zoomin .3s var(--e)}
+#m.fresh .pb i{animation:grow .8s var(--e) .15s backwards}#m.fresh .bars i{animation:growy .7s var(--e) .1s backwards}
+#t{display:block;bottom:calc(92px + env(safe-area-inset-bottom));opacity:0;visibility:hidden;pointer-events:none;transform:translate(-50%,14px) scale(.98);transition:opacity .25s,transform .35s var(--e),visibility 0s .35s}
+#t.on{opacity:1;visibility:visible;pointer-events:auto;transform:translate(-50%,0);transition-delay:0s}
+.dr{stroke-dasharray:1;stroke-dashoffset:1;animation:draw .7s var(--e) .05s forwards}
+.lc{transition:box-shadow .2s,transform .12s var(--e),border-color .2s}.lc:active{transform:scale(.985)}
+.lc.sel{outline:0;box-shadow:0 0 0 3px var(--acc)}
+.dot{transition:transform .15s var(--e),background-color .15s}.lc .dot:hover,.lc .dot:active{transform:scale(1.18);background:var(--acc)}
+.mini{padding:4px 12px;font-size:14px;border-radius:16px}.mini.on{background:var(--acc);color:var(--paper)}
+.gh{display:flex;justify-content:space-between;align-items:baseline;padding:12px 0 4px;border-bottom:1px solid var(--line)}.gh:first-child{padding-top:0}
+.bk{max-height:220px;overflow:hidden;transition:opacity .25s,transform .3s var(--e),max-height .3s var(--e),margin .3s,padding .3s}
+.bk.out{opacity:0;transform:translateY(-8px);max-height:0;margin-bottom:0;padding-top:0;padding-bottom:0;border-width:0}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-delay:0s!important;transition-duration:.01ms!important}}
 </style></head><body>
 <header><h1 id="h">Cecurile mele</h1><button id="b2">＋ Adaugă</button><button id="b4" title="Cont">👤</button></header>
 <main id="m"></main><div id="t"></div>
@@ -108,7 +144,7 @@ addEventListener('popstate',e=>{const s=e.state;if(!s||!s.checkScanner){tab='r';
  tab=s.tab==='s'?'s':'r';prod=s.prod||null;cur=s.receiptId?R.findIndex(r=>r.id===s.receiptId):-1;ed=s.editing&&cur>=0?JSON.parse(JSON.stringify(R[cur])):null;show()});
 history.replaceState(navigationState(),'');
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-const toast=(s,act,fn)=>{const t=$('#t');t.textContent=s;if(act){const b=document.createElement('button');b.textContent=act;b.style.cssText='margin-left:12px;border-color:var(--bg);color:var(--bg);padding:4px 10px';b.onclick=()=>{t.style.display='none';fn()};t.append(b)}t.style.display='block';clearTimeout(t.i);t.i=setTimeout(()=>t.style.display='none',act?7000:4000)};
+const toast=(s,act,fn)=>{const t=$('#t');t.textContent=s;if(act){const b=document.createElement('button');b.textContent=act;b.style.cssText='margin-left:12px;border-color:var(--bg);color:var(--bg);padding:4px 10px';b.onclick=()=>{t.classList.remove('on');fn()};t.append(b)}t.classList.add('on');clearTimeout(t.i);t.i=setTimeout(()=>t.classList.remove('on'),act?7000:4000)};
 const idb=n=>new Promise((ok,er)=>{const q=indexedDB.open(n,1);q.onupgradeneeded=()=>{q.result.createObjectStore('r',{keyPath:'id'});q.result.createObjectStore('p',{keyPath:'k'})};q.onsuccess=()=>ok(q.result);q.onerror=er});
 const tx=(s,m,f)=>new Promise((ok,er)=>{const t=db.transaction(s,m),r=f(t.objectStore(s));t.oncomplete=()=>ok(r.result);t.onerror=er});
 const key=n=>n.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9а-я%.]+/g,' ').trim();
@@ -136,6 +172,35 @@ const fmtPack=p=>!p?'':p.v<1?Math.round(p.v*1000)+(p.k==='L'?' ml':' g'):(+p.v.t
 // preț pe L/kg: din mărimea din nume, sau (la produse cântărite, cantitate cu zecimale) prețul e deja pe kg
 function unitP(n,q,u){const p=pack(n);if(p)return{p:u/p.v,k:p.k};if(q>0&&q%1!==0)return{p:u,k:'kg',w:1};return null}
 const buzz=()=>{try{navigator.vibrate&&navigator.vibrate(25)}catch(e){}};
+// ===== Lista de cumpărături pe magazine =====
+let shopBy=!!localStorage.shopBy;
+function shopInfo(k){if(!k)return null;const c=canon(k),by={};
+ R.filter(r=>!r.pending).forEach(r=>r.items.forEach(i=>{if(ck(i.n)!==c)return;const s=sk(r.store),o=by[s];if(!o||r.ts>=o.ts)by[s]={s,n:r.store,ts:r.ts,u:i.u,up:unitP(i.n,i.q,i.u)}}));
+ const a=Object.values(by);if(!a.length)return null;
+ const un=a.every(x=>x.up)&&new Set(a.map(x=>x.up.k)).size===1,v=x=>un?x.up.p:x.u;
+ a.sort((x,y)=>v(x)-v(y));const b=a[0],w=a[a.length-1],d=a.length>1?(v(w)-v(b))/v(w)*100:0;
+ return{b,d:d>=5?d:0}}
+const shopRow=(s,j,i,chip)=>`<div class="sr"><input type="checkbox" data-c="${j}" ${s.d?'checked':''}><div class="n" style="${s.d?'text-decoration:line-through;opacity:.6':''}">${esc(s.n)}${chip&&i&&i.d?`<div class="mute" style="font-size:12px">mai ieftin la ${esc(i.b.n)} · −${Math.round(i.d)}%</div>`:''}</div><button data-rm="${j}">✕</button></div>`;
+function shopHtml(infos,grp){
+ if(!META.shop.length)return'<div class="mute">Lista e goală.</div>';
+ if(!grp)return META.shop.map((s,j)=>shopRow(s,j,infos[j],1)).join('');
+ const g={},ord=[],oth=[],done=[];
+ META.shop.forEach((s,j)=>{const i=infos[j];if(s.d)return done.push([s,j]);if(!i)return oth.push([s,j]);
+  const o=g[i.b.s]=g[i.b.s]||(ord.push(i.b.s),{n:i.b.n,t:0,a:[]});o.t+=i.b.u;o.a.push([s,j,i])});
+ ord.sort((a,b)=>g[b].a.length-g[a].a.length);
+ const hd=(t,r)=>`<div class="gh"><b>${t}</b>${r?`<span class="mute m">${r}</span>`:''}</div>`;
+ return ord.map(k=>hd(esc(g[k].n),'≈ '+lei(g[k].t)+' lei')+g[k].a.map(([x,j,i])=>shopRow(x,j,i,0)).join('')).join('')
+  +(oth.length?hd('Fără istoric de preț')+oth.map(([x,j])=>shopRow(x,j,null,0)).join(''):'')
+  +(done.length?hd('Bifate')+done.map(([x,j])=>shopRow(x,j,null,0)).join(''):'')}
+// ===== Reamintire copie de siguranță (doar în modul guest) =====
+function bkBanner(){if(space!=='guest')return'';const rs=R.filter(r=>!r.demo);if(rs.length<5)return'';
+ const last=+localStorage.bkAt||Math.min(...rs.map(r=>r.ts)),days=Math.floor((Date.now()-last)/864e5);
+ if(days<30||Date.now()<(+localStorage.bkSnooze||0))return'';
+ return`<div class="card bk" id="bkb"><b>Fă o copie de siguranță</b><div class="mute">${localStorage.bkAt?'Ultima: acum '+days+' zile.':'Datele sunt doar pe acest dispozitiv.'}</div><div class="row" style="margin-top:10px;justify-content:flex-end"><button id="bkl">Mai târziu</button><button id="bkn" class="p">Exportă</button></div></div>`}
+function bkBind(){const b=$('#bkb');if(!b)return;const out=()=>{b.classList.add('out');setTimeout(()=>b.remove(),320)};
+ $('#bkl').onclick=()=>{localStorage.bkSnooze=Date.now()+14*864e5;out()};
+ $('#bkn').onclick=()=>{$('#ex').click();out()}}
+
 const snapMeta=()=>JSON.stringify({l:META.links,n:META.no});
 const undoTo=(sn,fn)=>async()=>{const o=JSON.parse(sn);META.links=o.l;META.no=o.n;await saveMeta();buildGR();(fn||(()=>linksView($('#m'))))()};
 addEventListener('keydown',e=>{if(e.key==='Escape'&&lk&&lk.sel){lk.sel=null;paintSel()}});
@@ -193,8 +258,8 @@ function lines(){const gi=$('#lgi'),sg=$('#lgs');if(!gi||!sg)return;const b=gi.g
  let d='';for(const c in g){const a=g[c],cols=[...new Set(a.map(x=>x.col))].sort((p,q)=>p-q);
   for(let i=0;i+1<cols.length;i++)for(const A of a.filter(x=>x.col===cols[i]))for(const B of a.filter(x=>x.col===cols[i+1])){
    const x1=A.x+A.w,y1=A.y,x2=B.x,y2=B.y,dx=(x2-x1)/2;
-   d+=`<path d="M${x1} ${y1}C${x1+dx} ${y1} ${x2-dx} ${y2} ${x2} ${y2}" fill="none" stroke="${hc(c)}" stroke-width="3" stroke-linecap="round"/>`}}
- sg.innerHTML=d}
+   d+=`<path d="M${x1} ${y1}C${x1+dx} ${y1} ${x2-dx} ${y2} ${x2} ${y2}" fill="none" stroke="${hc(c)}" stroke-width="3" stroke-linecap="round" pathLength="1"${c===lk.fresh&&Date.now()-lk.t<1500?' class="dr"':''}/>`}}
+ if(sg.dataset.d===d)return;sg.dataset.d=d;sg.innerHTML=d}
 function paintSel(){const gi=$('#lgi'),bar=$('#lbar');if(!gi||!bar)return;
  gi.querySelectorAll('.lc').forEach(e=>e.classList.toggle('sel',e.dataset.k===lk.sel));
  if(!lk.sel){bar.style.display='none';return}
@@ -202,7 +267,7 @@ function paintSel(){const gi=$('#lgi'),bar=$('#lbar');if(!gi||!bar)return;
  bar.innerHTML=`<span style="min-width:0">${esc(nmOf(lk.sel))}<br><small>Atinge alt produs ca să le legi</small></span><span style="display:flex;gap:8px">${isLinked(lk.sel)?'<button id="lu">Dezleagă</button>':''}<button id="lx">✕</button></span>`;
  $('#lx').onclick=()=>{lk.sel=null;paintSel()};
  if($('#lu'))$('#lu').onclick=async()=>{const k=lk.sel;lk.sel=null;const sn=snapMeta();await rmLink(k);toast('Dezlegat','Anulează',undoTo(sn));linksView($('#m'))}}
-async function doLink(a,b){lk.sel=null;const sn=snapMeta();if(await mkLink(a,b)){buzz();toast('Legat ✓ — pozele și istoricul se unesc','Anulează',undoTo(sn))}else toast('Sunt deja legate.');linksView($('#m'))}
+async function doLink(a,b){lk.sel=null;const sn=snapMeta();if(await mkLink(a,b)){lk.fresh=canon(a);lk.t=Date.now();buzz();toast('Legat ✓ — pozele și istoricul se unesc','Anulează',undoTo(sn))}else toast('Sunt deja legate.');linksView($('#m'))}
 function tapCell(k){if(!lk.sel){lk.sel=k;return paintSel()}if(lk.sel===k){lk.sel=null;return paintSel()}const a=lk.sel;lk.sel=null;doLink(a,k)}
 function dragBind(dot,cell){let on=0,tp=null,iv=null,px=0,py=0,hv=null;const gi=$('#lgi'),sg=$('#lgs');
  const upd=()=>{if(!tp)return;const b=gi.getBoundingClientRect(),r=cell.getBoundingClientRect(),rt=dot.classList.contains('r'),
@@ -250,7 +315,7 @@ function linksView(m){
    dragBind(e.querySelector('.dot'),e)});
   lines();paintSel()}
  m.querySelectorAll('[data-chip]').forEach(b=>b.onclick=()=>{const s=b.dataset.chip;META.pinned=pins.includes(s)?pins.filter(x=>x!==s):[...pins,s];saveMeta();lk.sel=null;linksView(m)});
- m.querySelectorAll('[data-ok]').forEach(b=>b.onclick=async()=>{const x=sug[+b.dataset.ok];const sn=snapMeta();await mkLink(x.a.k,x.b.k);buzz();toast('Legat ✓','Anulează',undoTo(sn,()=>linksView(m)));linksView(m)});
+ m.querySelectorAll('[data-ok]').forEach(b=>b.onclick=async()=>{const x=sug[+b.dataset.ok];const sn=snapMeta();await mkLink(x.a.k,x.b.k);lk.fresh=canon(x.a.k);lk.t=Date.now();buzz();toast('Legat ✓','Anulează',undoTo(sn,()=>linksView(m)));linksView(m)});
  m.querySelectorAll('[data-no]').forEach(b=>b.onclick=async()=>{const x=sug[+b.dataset.no];(META.no=META.no||[]).push(x.id);await saveMeta();linksView(m)});
  if($('#smore'))$('#smore').onclick=()=>{lk.more=!lk.more;linksView(m)};
  $('#lq').oninput=e=>{lk.q=e.target.value;grid()};$('#lun').onchange=e=>{lk.un=e.target.checked;grid()};
@@ -296,7 +361,19 @@ const shrink=async f=>{const b=await createImageBitmap(f),M=Math.max(b.width,b.h
  const x=c.getContext('2d');x.imageSmoothingQuality='high';x.drawImage(b,0,0,c.width,c.height);return c.toDataURL('image/jpeg',.9)};
 const fmt=r=>new Date(r.ts).toLocaleString('ro-RO',{day:'numeric',month:'long',year:'numeric',hour:'2-digit',minute:'2-digit'});
 const lei=n=>n.toFixed(2);
-function show(){const m=$('#m');m.classList.remove('screen-in','wide');void m.offsetWidth;m.classList.add('screen-in');if(cur<0)ed=null;$('#h').textContent=cur<0?(space==='guest'?'Cecurile mele · guest':'Cecurile mele'):'Cec';
+// ===== Tranziții între pagini (View Transitions + rezervă CSS) =====
+const scrMap={};let prevV=null;
+const vstate=()=>({tab,lvl:tab==='s'?(prod?1:0):(cur<0?0:(ed?2:1)),sub:tab==='s'&&!prod?['s','i','l'].indexOf(sv):0,cur,sig:tab+'|'+(tab==='s'?(prod||'')+'|'+(prod?'':sv):cur+(ed?'e':''))});
+const vdir=(a,b)=>{if(b.tab!==a.tab)return'fade';if(b.lvl!==a.lvl)return b.lvl>a.lvl?'fwd':'back';if(b.sig===a.sig)return null;if(b.tab==='s')return b.sub>=a.sub?'fwd':'back';return b.cur<a.cur?'fwd':'back'};
+function show(force){const nv=vstate(),pv=prevV,dir=pv?(force||vdir(pv,nv)):null;
+ if(pv)scrMap[pv.sig]=scrollY;prevV=nv;
+ const y=(pv&&pv.sig===nv.sig)?null:(dir==='back'||dir==='fade'?(scrMap[nv.sig]||0):0);
+ const run=()=>{_show();if(y!==null)scrollTo(0,y)};
+ if(!dir||matchMedia('(prefers-reduced-motion:reduce)').matches)return run();
+ if(document.startViewTransition){const r=document.documentElement;r.dataset.vt=dir;
+  const t=document.startViewTransition(run);t.finished.catch(()=>{}).finally(()=>{if(r.dataset.vt===dir)delete r.dataset.vt})}
+ else{run();const m=$('#m');m.classList.remove('in-fwd','in-back','in-fade');void m.offsetWidth;m.classList.add('in-'+dir)}}
+function _show(){const m=$('#m');m.classList.remove('screen-in','wide');m.classList.add('fresh');clearTimeout(m.ft);m.ft=setTimeout(()=>m.classList.remove('fresh'),1400);void m.offsetWidth;m.classList.add('screen-in');if(cur<0)ed=null;$('#h').textContent=cur<0?(space==='guest'?'Cecurile mele · guest':'Cecurile mele'):'Cec';
  document.querySelectorAll('#bn [data-t]').forEach(b=>b.classList.toggle('on',b.dataset.t===tab));
  if(tab==='s'){$('#h').textContent=prod?'Produs':'Statistici';return stats()}
  if(cur<0){return listView(m)}
@@ -345,9 +422,9 @@ function stats(){const m=$('#m');m.classList.toggle('wide',!prod&&sv==='l');if(p
  <h3 class="sec">Cumpărate cel mai des</h3><div class="card">${pl.sort((x,y)=>y.c-x.c).slice(0,5).map(p=>row(p,lei(p.t)+' lei în total','× '+p.c)).join('')}</div>
  ${Object.keys(st).length>1?`<h3 class="sec">După magazin</h3><div class="card">${Object.entries(st).sort((x,y)=>y[1]-x[1]).map(([k,v])=>`<div class="row sr"><span>${esc(k)}</span><b class="m">${lei(v)}</b></div>`).join('')}</div>`:''}`:'<p class="mute">Niciun cec în perioada aceasta.</p>'}
  ${ch.length?`<h3 class="sec">Prețuri care s-au schimbat</h3><div class="card">${ch.map(x=>row(x,(ns>1?esc(x.s)+' · ':'')+lei(x.q)+' → '+lei(x.l)+' lei'+(x.sfx||''),(x.d>0?'▲ ':'▼ ')+Math.abs(x.d).toFixed(0)+'%',x.d>0?'up':'dn')).join('')}</div>`:''}`;
- m.querySelectorAll('[data-sm]').forEach(e=>e.onclick=()=>{sm=e.dataset.sm;pd=Date.now();stats()});
+ m.querySelectorAll('[data-sm]').forEach(e=>e.onclick=()=>{sm=e.dataset.sm;pd=Date.now();show('fade')});
  m.querySelectorAll('[data-i]').forEach(e=>e.onclick=()=>{const x=days[+e.dataset.i];$('#cap').textContent=dl(x.d,{weekday:'long',day:'numeric',month:'long'})+': '+(x.n?lei(x.v)+' lei · '+x.n+(x.n>1?' cecuri':' cec'):'fără cumpărături')});
- $('#mp').onclick=()=>{shift(-1);stats()};$('#mn').onclick=()=>{shift(1);stats()};bindSv(m);bind(m)}
+ $('#mp').onclick=()=>{shift(-1);show('back')};$('#mn').onclick=()=>{shift(1);show('fwd')};bindSv(m);bind(m)}
 let pu=null;
 function product(m){prod=canon(prod);const k=prod,e=[];
  R.filter(r=>!r.pending).forEach(r=>r.items.forEach(i=>{if(ck(i.n)===k)e.push({r,i,up:unitP(i.n,i.q,i.u)})}));
@@ -387,11 +464,11 @@ const guess=k=>{const w=k.split(' ');for(const[c,l]of KW)if(l.split(' ').some(x=
 const cat=k=>META.cats[canon(k)]||META.cats[k]||guess(k);
 const saveMeta=()=>save({id:'__meta__',cats:META.cats,shop:META.shop,budget:META.budget,links:META.links,pinned:META.pinned,no:META.no,ts:0,items:[]});
 const svSeg=()=>`<div class="seg"><button data-sv="s" class="${sv==='s'?'on':''}">Rezumat</button><button data-sv="i" class="${sv==='i'?'on':''}">Idei</button><button data-sv="l" class="${sv==='l'?'on':''}">Legături</button></div>`;
-const bindSv=m=>m.querySelectorAll('[data-sv]').forEach(e=>e.onclick=()=>{sv=e.dataset.sv;stats()});
+const bindSv=m=>m.querySelectorAll('[data-sv]').forEach(e=>e.onclick=()=>{sv=e.dataset.sv;show()});
 const card=(r,i)=>`<div class="card" data-i="${i}"><div class="row"><b>${esc(r.store)}${r.demo?' <span class="mute">(demo)</span>':''}</b><span class="m tot" style="font-size:18px">${lei(r.total)}</span></div><div class="mute">${fmt(r)} · ${r.items.length} produse</div><div class="th">${r.items.slice(0,6).map(x=>pho(ck(x.n))?`<img src="${pho(ck(x.n))}" decoding="async">`:'').join('')}</div></div>`;
 function listView(m){
  if(!R.length){m.innerHTML='<p class="mute">Niciun cec încă. Apasă „Scanează” jos și îndreaptă camera spre codul QR de pe cec.</p>';return}
- m.innerHTML=`<input id="sq" class="in" type="search" placeholder="🔍 Caută un cec sau un produs" value="${esc(sq)}"><div id="res"></div>`;
+ m.innerHTML=bkBanner()+`<input id="sq" class="in" type="search" placeholder="🔍 Caută un cec sau un produs" value="${esc(sq)}"><div id="res"></div>`;
  const f=()=>{const q=key(sq),res=$('#res');let ix=R.map((r,i)=>i),h='',np=0;
   if(q){ix=ix.filter(i=>{const r=R[i];return key(r.store).includes(q)||key(fmt(r)).includes(q)||r.items.some(x=>key(x.n).includes(q))});
    const o={};R.forEach(r=>r.items.forEach(x=>{const k0=key(x.n),k=canon(k0);if(!(k0.includes(q)||k.includes(q)||key(cat(k)).includes(q)))return;const p=o[k]=o[k]||{n:nmOf(k,x.n),k,c:0,t:0};p.c+=x.q;p.t+=x.t}));
@@ -401,7 +478,7 @@ function listView(m){
   let last='';h+=ix.map(i=>{const r=R[i],ml=dl(r.ts,{month:'long',year:'numeric'}),hd=ml!==last?'<h3 class="mute" style="margin:14px 0 8px;text-transform:capitalize">'+ml+'</h3>':'';last=ml;return hd+card(r,i)}).join('');
   if(q&&!ix.length&&!np)h='<p class="mute">Nimic găsit.</p>';
   res.innerHTML=h;res.querySelectorAll('.card[data-i]').forEach(c=>c.onclick=()=>openReceipt(+c.dataset.i));bind(res)};
- $('#sq').oninput=e=>{sq=e.target.value;f()};f()}
+ $('#sq').oninput=e=>{sq=e.target.value;f()};f();bkBind()}
 function editView(m,r){const e=ed,tot=()=>e.items.reduce((s,i)=>s+i.t,0),z=n=>String(n).padStart(2,'0'),x=new Date(e.ts);
  const dt=x.getFullYear()+'-'+z(x.getMonth()+1)+'-'+z(x.getDate())+'T'+z(x.getHours())+':'+z(x.getMinutes());
  m.innerHTML=`<div class="nav"><button id="ec">Anulează</button><b>Editare cec</b><button id="es" class="p">Salvează</button></div>
@@ -421,14 +498,16 @@ function ideas(m){
  const cheap=Object.values(h).map(o=>{const ok=Object.keys(o.st).every(s=>o.su[s]&&o.su[s].length===o.st[s].length)&&o.uk.size===1,sfx=ok?'/'+[...o.uk][0]:'',e=Object.entries(ok?o.su:o.st).map(([s,a])=>[s,avg(a)]).sort((a,b)=>a[1]-b[1]);if(e.length<2)return null;const d=(e[e.length-1][1]-e[0][1])/e[e.length-1][1]*100;return d>=5?{...o,e,d,sfx}:null}).filter(Boolean).sort((a,b)=>b.d-a.d).slice(0,5);
  const nw=new Date(),ms=new Date(nw.getFullYear(),nw.getMonth(),1).getTime(),dim=new Date(nw.getFullYear(),nw.getMonth()+1,0).getDate(),sp=sum(rs.filter(r=>r.ts>=ms)),proj=sp/nw.getDate()*dim,bg=META.budget;
  const wd=[0,0,0,0,0,0,0];rs.forEach(r=>wd[(new Date(r.ts).getDay()+6)%7]++);const nm=['luni','marți','miercuri','joi','vineri','sâmbătă','duminică'],bw=wd.indexOf(Math.max(...wd)),l4=rs.filter(r=>r.ts>now-28*DAY),big=rs.slice().sort((a,b)=>b.total-a.total)[0];
- m.innerHTML=svSeg()+`<h3 class="sec" style="margin-top:6px">Lista de cumpărături</h3><div class="card">
- ${META.shop.map((s,j)=>`<div class="sr"><input type="checkbox" data-c="${j}" ${s.d?'checked':''}><div class="n" style="${s.d?'text-decoration:line-through;opacity:.6':''}">${esc(s.n)}</div><button data-rm="${j}">✕</button></div>`).join('')||'<div class="mute">Lista e goală.</div>'}
+ const infos=META.shop.map(s=>s.d?null:shopInfo(s.k)),canGroup=new Set(infos.filter(Boolean).map(i=>i.b.s)).size>=2;
+ m.innerHTML=svSeg()+`<div class="row" style="align-items:center;margin-top:6px"><h3 class="sec" style="margin:0">Lista de cumpărături</h3>${canGroup?`<button class="mini ${shopBy?'on':''}" id="sbt">Pe magazine</button>`:''}</div><div class="card" id="shl" style="margin-top:8px">
+ ${shopHtml(infos,shopBy&&canGroup)}
  <div class="row" style="margin-top:10px;gap:8px"><input id="nw" class="in" placeholder="Adaugă produs" style="margin:0"><button id="nwb" class="p">＋</button></div>${META.shop.some(s=>s.d)?'<button id="clr" style="margin-top:8px">Șterge bifatele</button>':''}</div>
  ${sug.length?`<div class="card"><b>Probabil îți trebuie</b>${sug.map(o=>`<div class="sr"><div class="n" data-p="${esc(o.k)}">${esc(o.n)}<div class="mute">cam la ${Math.round(o.gap)} zile · ultima dată acum ${Math.round(o.since)} zile</div></div><button data-a="${esc(o.k)}">＋ listă</button></div>`).join('')}</div>`:''}
  <h3 class="sec">Buget lunar</h3><div class="card"><div class="row" style="gap:8px"><input id="bg" class="in" type="number" inputmode="decimal" placeholder="Buget în lei / lună" value="${bg||''}" style="margin:0"><button id="bgs" class="p">Setează</button></div>
  ${bg?`<div class="row" style="margin-top:10px"><span>Cheltuit luna aceasta</span><b class="m">${lei(sp)} / ${lei(bg)}</b></div><div class="pb ${sp>bg?'over':''}"><i style="width:${Math.min(100,sp/bg*100)}%"></i></div><div class="mute" style="margin-top:6px">Estimare la sfârșitul lunii: ${lei(proj)} lei${proj>bg?' (peste buget)':''}</div>`:'<div class="mute" style="margin-top:6px">Setează o sumă ca să vezi cât ți-a mai rămas.</div>'}</div>
  ${cheap.length?`<h3 class="sec">Unde e mai ieftin</h3><div class="card">${cheap.map(o=>row(o,esc(o.e[0][0])+' '+lei(o.e[0][1])+o.sfx+' · '+esc(o.e[o.e.length-1][0])+' '+lei(o.e[o.e.length-1][1])+o.sfx,'−'+o.d.toFixed(0)+'%','dn')).join('')}</div>`:''}
  ${rs.length?`<h3 class="sec">Obiceiurile tale</h3><div class="card"><div class="row sr"><span>Ziua preferată pentru cumpărături</span><b>${nm[bw]}</b></div><div class="row sr"><span>Cecuri pe săptămână (ultimele 4)</span><b>${(l4.length/4).toFixed(1)}</b></div><div class="row sr"><span>Cheltuit pe săptămână (ultimele 4)</span><b class="m">${lei(sum(l4)/4)}</b></div><div class="row sr"><span>Cel mai mare cec</span><b class="m">${lei(big.total)}</b></div></div>`:''}`;
+ if($('#sbt'))$('#sbt').onclick=()=>{shopBy=!shopBy;localStorage.shopBy=shopBy?'1':'';ideas(m);$('#shl').classList.add('swap')};
  m.querySelectorAll('[data-c]').forEach(c=>c.onchange=()=>{META.shop[+c.dataset.c].d=c.checked?1:0;saveMeta();ideas(m)});
  m.querySelectorAll('[data-rm]').forEach(b=>b.onclick=()=>{META.shop.splice(+b.dataset.rm,1);saveMeta();ideas(m)});
  m.querySelectorAll('[data-a]').forEach(b=>b.onclick=()=>{const o=sug.find(x=>x.k===b.dataset.a);META.shop.push({n:o.n,k:o.k,d:0});saveMeta();ideas(m)});
@@ -497,7 +576,7 @@ $('#b4').onclick=()=>{$('#px').value=localStorage.px||'';$('#af').hidden=space!=
 $('#ax').onclick=()=>$('#ad').close();
 $('#ex').onclick=async()=>{const r=(await tx('r','readonly',o=>o.getAll())).filter(x=>!x.deleted),p=await tx('p','readonly',o=>o.getAll());
  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify({v:1,receipts:r,photos:p.map(x=>({k:x.k,img:x.img}))})],{type:'application/json'}));
- a.download='cecuri-'+new Date().toISOString().slice(0,10)+'.json';a.click();toast(r.length+' cecuri exportate')};
+ a.download='cecuri-'+new Date().toISOString().slice(0,10)+'.json';a.click();localStorage.bkAt=Date.now();toast(r.length+' cecuri exportate')};
 $('#im').onclick=()=>$('#if').click();
 $('#if').onchange=async e=>{const f=e.target.files[0];e.target.value='';if(!f)return;
  try{const d=JSON.parse(await f.text()),rs=d.receipts||[],ps=d.photos||[];let n=0;
