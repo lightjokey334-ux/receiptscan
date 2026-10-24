@@ -1,1 +1,1 @@
-# receipescan
+# receiptscan
