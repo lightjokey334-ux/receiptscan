@@ -161,6 +161,8 @@ html[data-vt=deck-l]::view-transition-new(rcard){animation-name:dk-in-r2}html[da
 .dd.open .ddp{opacity:1;visibility:visible;transform:none;transition-delay:0s}
 .ddo{display:flex;justify-content:space-between;align-items:center;gap:10px;width:100%;border:0;border-radius:8px;background:none;color:var(--ink);padding:12px;text-align:left;font:inherit}
 .ddo.on{background:var(--acc);color:var(--paper)}.ddo.on .mute{color:inherit;opacity:.8}
+#lb .row{flex-wrap:wrap;justify-content:center}
+.dng{color:#e5484d;border-color:#e5484d}
 </style></head><body>
 <header><h1 id="h">Cecurile mele</h1><button id="b2">＋ Adaugă</button><button id="b4" title="Cont">👤</button></header>
 <main id="m"></main><div id="t"></div>
@@ -172,7 +174,7 @@ html[data-vt=deck-l]::view-transition-new(rcard){animation-name:dk-in-r2}html[da
 <div class="row" style="margin-top:14px;gap:8px"><button id="ex">Exportă date</button><button id="im">Importă date</button></div><input id="if" type="file" accept=".json,application/json" hidden>
 <details style="margin-top:14px"><summary class="mute">Avansat</summary><input id="px" placeholder="Adresa proxy Cloudflare (opțional)"><button id="pxs">Salvează proxy</button></details>
 <button id="ax" style="margin-top:14px">Închide</button></dialog>
-<div id="lb" hidden><img id="li" alt=""><div class="row" style="gap:12px"><button id="lc">Închide</button><button id="lp" class="p">Schimbă poza</button></div></div>
+<div id="lb" hidden><img id="li" alt=""><div class="row" style="gap:12px"><button id="lc">Închide</button><button id="lp" class="p">Schimbă poza</button><button id="ld" class="dng">Șterge poza</button></div></div>
 <div id="sc" hidden><video id="v" playsinline muted></video><p class="mute" style="color:#fff">Îndreaptă camera spre codul QR</p><button id="sx">Închide</button></div>
 <input id="qf" type="file" accept="image/*" capture="environment" hidden>
 <input id="pf" type="file" accept="image/*" hidden>
@@ -647,6 +649,10 @@ document.querySelectorAll('#bn [data-t]').forEach(b=>b.onclick=()=>{const next=b
 $('#pxs').onclick=()=>{localStorage.px=$('#px').value.trim();toast('Proxy salvat')};
 $('#lc').onclick=()=>$('#lb').hidden=true;$('#lb').onclick=e=>{if(e.target.id==='lb')$('#lb').hidden=true};
 $('#lp').onclick=()=>{$('#lb').hidden=true;$('#pf').click()};
+// Ștergerea pozei = înlocuire cu o înregistrare goală (img:''), ca să se propage prin sincronizare pe toate dispozitivele; se șterg și pozele numelor unite
+$('#ld').onclick=async()=>{const k=pk;$('#lb').hidden=true;if(!k)return;const c=canon(k),ks=[c,...(GR[c]||[])].filter(x=>P[x]);if(!ks.length)return;
+ const old=ks.map(x=>[x,P[x]]);for(const x of ks)await tx('p','readwrite',o=>o.put({k:x,img:'',u:Date.now()}));sync();await load();show();
+ toast('Poză ștearsă','Anulează',async()=>{for(const[x,img]of old)await tx('p','readwrite',o=>o.put({k:x,img,u:Date.now()}));sync();await load();show()})};
 $('#qf').onchange=async e=>{const f=e.target.files[0];e.target.value='';if(!f)return;
  try{const b=await createImageBitmap(f),u=await decode(b,b.width,b.height);u?addLink(u):toast('Nu am găsit codul QR. Încearcă din nou, mai de aproape.')}catch(x){toast('Cititorul QR nu s-a încărcat. Lipește linkul cu „Adaugă”.')}};
 $('#pf').onchange=async e=>{const f=e.target.files[0];e.target.value='';if(!f||!pk)return;
