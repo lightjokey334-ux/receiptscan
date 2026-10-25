@@ -136,6 +136,31 @@ html[data-vt^=deck]::view-transition-new(rcard){animation-name:dk-rise}
 @keyframes dk-out-l{to{transform:translateX(-125%) rotate(-9deg)}}@keyframes dk-out-r{to{transform:translateX(125%) rotate(9deg)}}
 @keyframes dk-rise{from{transform:translateY(20px) scale(.93);filter:brightness(.93) drop-shadow(0 4px 10px rgb(0 0 0/.1))}}
 #m.in-deck-l,#m.in-deck-r{animation:none}#m.in-deck-l #rcard,#m.in-deck-r #rcard{animation:dk-rise .45s var(--e)}
+
+/* ===== carusel de carduri (tragere live + butoane) ===== */
+#deck{position:relative}
+#m.dragsurf{touch-action:pan-y pinch-zoom;overflow-x:clip;min-height:60vh}
+#deck .card{transform-origin:50% 130%;will-change:transform}
+#deck.dragging .card{box-shadow:0 12px 28px rgb(0 0 0/.18)}
+#deck .rghost{position:absolute;left:0;top:0;width:100%;pointer-events:none;transform-origin:50% 130%;will-change:transform}
+#deck .rghost .card{margin:0;box-shadow:0 12px 28px rgb(0 0 0/.18)}
+html[data-vt^=deck]::view-transition-old(rcard){animation-duration:.42s;animation-timing-function:var(--e)}
+html[data-vt^=deck]::view-transition-new(rcard){animation-duration:.42s;animation-timing-function:var(--e)}
+html[data-vt=deck-l]::view-transition-old(rcard){animation-name:dk-out-l2}html[data-vt=deck-r]::view-transition-old(rcard){animation-name:dk-out-r2}
+html[data-vt=deck-l]::view-transition-new(rcard){animation-name:dk-in-r2}html[data-vt=deck-r]::view-transition-new(rcard){animation-name:dk-in-l2}
+@keyframes dk-out-l2{to{transform:translateX(-118%) rotate(-6deg)}}@keyframes dk-out-r2{to{transform:translateX(118%) rotate(6deg)}}
+@keyframes dk-in-r2{from{transform:translateX(118%) rotate(4deg)}}@keyframes dk-in-l2{from{transform:translateX(-118%) rotate(-4deg)}}
+#m.in-deck-l #rcard{animation:dk-in-r2 .42s var(--e)}#m.in-deck-r #rcard{animation:dk-in-l2 .42s var(--e)}
+
+/* ===== meniu derulant (categorii) ===== */
+.dd{position:relative;z-index:5;margin:10px 0 6px}
+.ddb{display:flex;justify-content:space-between;align-items:center;gap:10px;width:100%;padding:11px 14px;text-align:left;background:var(--paper)}
+.ddb span:first-child{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.car{display:inline-block;transition:transform .25s var(--e)}.dd.open .car{transform:rotate(180deg)}
+.ddp{position:absolute;left:0;right:0;top:calc(100% + 6px);max-height:min(60vh,420px);overflow-y:auto;overscroll-behavior:contain;padding:4px;background:var(--paper);border:1px solid var(--line);border-radius:12px;box-shadow:0 14px 34px rgb(0 0 0/.2);opacity:0;visibility:hidden;transform:translateY(-6px) scale(.98);transform-origin:50% 0;transition:opacity .18s,transform .24s var(--e),visibility 0s .24s}
+.dd.open .ddp{opacity:1;visibility:visible;transform:none;transition-delay:0s}
+.ddo{display:flex;justify-content:space-between;align-items:center;gap:10px;width:100%;border:0;border-radius:8px;background:none;color:var(--ink);padding:12px;text-align:left;font:inherit}
+.ddo.on{background:var(--acc);color:var(--paper)}.ddo.on .mute{color:inherit;opacity:.8}
 </style></head><body>
 <header><h1 id="h">Cecurile mele</h1><button id="b2">＋ Adaugă</button><button id="b4" title="Cont">👤</button></header>
 <main id="m"></main><div id="t"></div>
@@ -191,10 +216,42 @@ const fmtPack=p=>!p?'':p.v<1?Math.round(p.v*1000)+(p.k==='L'?' ml':' g'):(+p.v.t
 // preț pe L/kg: din mărimea din nume, sau (la produse cântărite, cantitate cu zecimale) prețul e deja pe kg
 function unitP(n,q,u){const p=pack(n);if(p)return{p:u/p.v,k:p.k};if(q>0&&q%1!==0)return{p:u,k:'kg',w:1};return null}
 const buzz=()=>{try{navigator.vibrate&&navigator.vibrate(25)}catch(e){}};
+// ===== Cardurile cecurilor: tragere live (carusel cu carduri) =====
+let dk=null,dgAt=0;
+document.addEventListener('click',e=>{if(Date.now()-dgAt<350){e.stopPropagation();e.preventDefault()}},true);
+function deckBind(m){
+ const deck=$('#deck');if(!deck||ed||cur<0||!R[cur])return;m.classList.add('dragsurf');const GAP=14;
+ const top=()=>deck.querySelector('.card');
+ const mk=n=>{const g=document.createElement('div');g.className='rghost';g.setAttribute('inert','');g.setAttribute('aria-hidden','true');g.innerHTML=rcardHtml(R[n]).replace(/ id="[^"]*"/g,'');deck.appendChild(g);return g};
+ const apply=()=>{const o=dk,ok=o.n>=0&&o.n<R.length,eff=ok?o.dx:o.dx*.3,s=o.dx<0?-1:1,p=Math.min(1,Math.abs(eff)/(o.W+GAP)),c=top();
+  c.style.transition='none';c.style.transform=`translate3d(${eff}px,0,0) rotate(${eff/(o.W+GAP)*6}deg)`;
+  if(o.g){o.g.style.transition='none';o.g.style.transform=`translate3d(${-s*(o.W+GAP)+o.dx}px,0,0) rotate(${(1-p)*-s*4}deg)`}};
+ m.onpointerdown=e=>{if(dk&&dk.busy)return;if(e.pointerType==='mouse'&&e.button)return;
+  dk={id:e.pointerId,x0:e.clientX,y0:e.clientY,t:[[performance.now(),e.clientX]],lock:0,dx:0,W:deck.offsetWidth,n:cur,g:null,busy:0}};
+ m.onpointermove=e=>{const o=dk;if(!o||o.busy||e.pointerId!==o.id)return;const dx=e.clientX-o.x0,dy=e.clientY-o.y0;
+  if(!o.lock){if(Math.abs(dx)>10&&Math.abs(dx)>Math.abs(dy)*1.3){o.lock=1;try{m.setPointerCapture(e.pointerId)}catch(x){}deck.classList.add('dragging')}
+   else if(Math.abs(dy)>10){dk=null;return}else return}
+  o.dx=dx;o.t.push([performance.now(),e.clientX]);if(o.t.length>6)o.t.shift();
+  const n=cur+(dx<0?1:-1),ok=n>=0&&n<R.length;
+  if(n!==o.n||(ok&&!o.g)){if(o.g){o.g.remove();o.g=null}o.n=n;if(ok)o.g=mk(n)}
+  apply()};
+ const end=e=>{const o=dk;if(!o||e.pointerId!==o.id)return;if(!o.lock){dk=null;return}
+  dgAt=Date.now();o.busy=1;const T=o.t,a=T[0],b=T[T.length-1],v=b[0]>a[0]?(b[1]-a[1])/(b[0]-a[0]):0,dx=o.dx,sg=dx<0?-1:1,ok=o.n>=0&&o.n<R.length,c=top(),g=o.g;
+  const go=e.type==='pointerup'&&ok&&(Math.abs(dx)>o.W*.28||(Math.abs(v)>.5&&Math.abs(dx)>24&&Math.sign(v)===sg));
+  if(go){c.style.transition='transform .3s cubic-bezier(.3,.6,.25,1)';c.style.transform=`translate3d(${sg*(o.W+60)}px,0,0) rotate(${sg*7}deg)`;
+   if(g){g.style.transition='transform .3s cubic-bezier(.3,.6,.25,1)';g.style.transform='translate3d(0,0,0) rotate(0deg)'}
+   setTimeout(()=>{if(dk!==o)return;cur=o.n;show('none')},300)}
+  else{c.style.transition='transform .4s cubic-bezier(.34,1.56,.64,1)';c.style.transform='translate3d(0,0,0) rotate(0deg)';
+   if(g){g.style.transition='transform .3s var(--e)';g.style.transform=`translate3d(${-sg*(o.W+GAP)}px,0,0)`}
+   setTimeout(()=>{if(g)g.remove();deck.classList.remove('dragging');c.style.transition=c.style.transform='';if(dk===o)dk=null},420)}};
+ m.onpointerup=end;m.onpointercancel=end}
 // ===== Căutare cu buton ✕ =====
 const sbox=(id,ph,val,st)=>`<div class="sb${val?' has':''}"${st?` style="${st}"`:''}><input id="${id}" class="in" type="search" placeholder="${ph}" value="${esc(val)}" autocomplete="off" enterkeyhint="search"><button type="button" class="cx" aria-label="Șterge căutarea" tabindex="-1">✕</button></div>`;
 function bindSb(root){root.querySelectorAll('.sb').forEach(b=>{const i=b.querySelector('input'),x=b.querySelector('.cx'),sy=()=>b.classList.toggle('has',!!i.value);
  i.addEventListener('input',sy);x.onmousedown=e=>e.preventDefault();x.onclick=()=>{i.value='';i.dispatchEvent(new Event('input',{bubbles:true}));sy();i.focus()}})}
+// ===== Meniuri derulante: se închid la atingere în afară sau Esc =====
+document.addEventListener('pointerdown',e=>{const d=document.querySelector('.dd.open');if(d&&!d.contains(e.target)){d.classList.remove('open');dgAt=Date.now()}});
+addEventListener('keydown',e=>{if(e.key==='Escape'){const d=document.querySelector('.dd.open');if(d)d.classList.remove('open')}});
 // ===== Produse pe categorii =====
 let pcat=null,psort='t',pq='';
 function produse(m){
@@ -203,7 +260,7 @@ function produse(m){
  const P0={};rs.forEach(r=>r.items.forEach(i=>{const k=ck(i.n),o=P0[k]=P0[k]||{k,n:nmOf(k,i.n),c:0,t:0,ts:0,u:0,up:null,cat:cat(k)};o.c++;o.t+=i.t;if(r.ts>=o.ts){o.ts=r.ts;o.u=i.u;o.up=unitP(i.n,i.q,i.u)}}));
  const all=Object.values(P0),cc={};all.forEach(o=>cc[o.cat]=(cc[o.cat]||0)+1);
  const cats=Object.entries(cc).sort((a,b)=>b[1]-a[1]);if(pcat&&!cc[pcat])pcat=null;
- m.insertAdjacentHTML('beforeend',`<div class="chips h" id="pch"><button class="chip ${pcat?'':'on'}" data-pc="">Toate · ${all.length}</button>${cats.map(([c,n])=>`<button class="chip ${pcat===c?'on':''}" data-pc="${esc(c)}">${esc(c)} · ${n}</button>`).join('')}</div>
+ m.insertAdjacentHTML('beforeend',`<div class="dd" id="pdd"><button type="button" class="ddb" id="pddb" aria-haspopup="listbox" aria-expanded="false"><span id="pddl">${pcat?esc(pcat)+' · '+cc[pcat]:'Toate categoriile · '+all.length}</span><span class="car">▾</span></button><div class="ddp" role="listbox"><button type="button" class="ddo ${pcat?'':'on'}" data-pc=""><span>Toate categoriile</span><span class="mute">${all.length}</span></button>${cats.map(([c,n])=>`<button type="button" class="ddo ${pcat===c?'on':''}" data-pc="${esc(c)}"><span>${esc(c)}</span><span class="mute">${n}</span></button>`).join('')}</div></div>
  ${sbox('pq','🔍 Caută în produse',pq)}
  <div class="row" style="align-items:center;margin:8px 0"><span class="mute" id="psum"></span><span class="pm" style="margin:0"><button class="mini ${psort==='t'?'on':''}" data-ps="t">Cheltuit</button><button class="mini ${psort==='r'?'on':''}" data-ps="r">Recent</button><button class="mini ${psort==='n'?'on':''}" data-ps="n">A–Z</button></span></div>
  <div class="card" id="pl"></div>`);
@@ -212,10 +269,12 @@ function produse(m){
   $('#psum').textContent=a.length+(a.length===1?' produs':' produse')+' · '+Math.round(a.reduce((s,o)=>s+o.t,0))+' lei';
   const pl=$('#pl');pl.innerHTML=a.length?a.map(o=>row(o,o.c+(o.c===1?' cumpărare':' cumpărări')+' · ultima '+lei(o.u)+(o.up?' · '+lei(o.up.p)+'/'+o.up.k:''),lei(o.t))).join(''):'<div class="mute">Nimic găsit.</div>';
   bind(pl);if(anim){pl.classList.remove('swap');void pl.offsetWidth;pl.classList.add('swap')}};
- m.querySelectorAll('[data-pc]').forEach(b=>b.onclick=()=>{pcat=b.dataset.pc||null;m.querySelectorAll('[data-pc]').forEach(x=>x.classList.toggle('on',x===b));draw(1)});
+ const dd=$('#pdd'),setOpen=o=>{dd.classList.toggle('open',o);$('#pddb').setAttribute('aria-expanded',o)};
+ $('#pddb').onclick=()=>setOpen(!dd.classList.contains('open'));
+ m.querySelectorAll('[data-pc]').forEach(b=>b.onclick=()=>{pcat=b.dataset.pc||null;m.querySelectorAll('[data-pc]').forEach(x=>x.classList.toggle('on',x===b));$('#pddl').textContent=pcat?pcat+' · '+cc[pcat]:'Toate categoriile · '+all.length;setOpen(false);draw(1)});
  m.querySelectorAll('[data-ps]').forEach(b=>b.onclick=()=>{psort=b.dataset.ps;m.querySelectorAll('[data-ps]').forEach(x=>x.classList.toggle('on',x===b));draw(1)});
  $('#pq').oninput=e=>{pq=e.target.value;draw()};
- bindSb(m);bindSv(m);draw();const on=m.querySelector('#pch .on');if(on)$('#pch').scrollLeft=Math.max(0,on.offsetLeft-24)}
+ bindSb(m);bindSv(m);draw()}
 // ===== Săgeți stânga/dreapta între cecuri =====
 addEventListener('keydown',e=>{if(tab!=='r'||cur<0||ed||e.metaKey||e.ctrlKey||e.altKey)return;
  if(/INPUT|TEXTAREA|SELECT/.test((document.activeElement||{}).tagName)||document.querySelector('dialog[open]')||!$('#lb').hidden)return;
@@ -413,7 +472,7 @@ const lei=n=>n.toFixed(2);
 const scrMap={};let prevV=null;
 const vstate=()=>({tab,lvl:tab==='s'?(prod?1:0):(cur<0?0:(ed?2:1)),sub:tab==='s'&&!prod?['s','p','i','l'].indexOf(sv):0,cur,sig:tab+'|'+(tab==='s'?(prod||'')+'|'+(prod?'':sv):cur+(ed?'e':''))});
 const vdir=(a,b)=>{if(b.tab!==a.tab)return'fade';if(b.lvl!==a.lvl)return b.lvl>a.lvl?'fwd':'back';if(b.sig===a.sig)return null;if(b.tab==='s')return b.sub>=a.sub?'fwd':'back';return b.cur>a.cur?'deck-l':'deck-r'};
-function show(force){const nv=vstate(),pv=prevV,dir=pv?(force||vdir(pv,nv)):null;
+function show(force){const nv=vstate(),pv=prevV,dir=pv&&force!=='none'?(force||vdir(pv,nv)):null;
  if(pv)scrMap[pv.sig]=scrollY;prevV=nv;
  const y=(pv&&pv.sig===nv.sig)?null:(dir==='back'||dir==='fade'?(scrMap[nv.sig]||0):0);
  const run=()=>{_show();if(y!==null)scrollTo(0,y)};
@@ -421,22 +480,23 @@ function show(force){const nv=vstate(),pv=prevV,dir=pv?(force||vdir(pv,nv)):null
  if(document.startViewTransition){const r=document.documentElement;r.dataset.vt=dir;
   const t=document.startViewTransition(run);t.finished.catch(()=>{}).finally(()=>{if(r.dataset.vt===dir)delete r.dataset.vt})}
  else{run();const m=$('#m');m.classList.remove('in-fwd','in-back','in-fade','in-deck-l','in-deck-r');void m.offsetWidth;m.classList.add('in-'+dir)}}
-function _show(){const m=$('#m');m.classList.remove('screen-in','wide');m.classList.add('fresh');clearTimeout(m.ft);m.ft=setTimeout(()=>m.classList.remove('fresh'),1400);void m.offsetWidth;m.classList.add('screen-in');if(cur<0)ed=null;$('#h').textContent=cur<0?(space==='guest'?'Cecurile mele · guest':'Cecurile mele'):'Cec';
+const rcardHtml=r=>`<div class="card" id="rcard"><button id="eb" style="float:right;padding:4px 10px">✎ Editează</button><b>${esc(r.store)}</b>${r.demo?' <span class="mute">(demo)</span>':''}<div class="mute">${fmt(r)}${r.no?' · bon №<span class="cp">'+esc(r.no)+'</span>':''}</div>${r.pending?'<p>Produsele nu au fost încă citite.'+((r.err||lastErr[r.id])?'<br><span class="mute cp">Motiv: '+esc(r.err||lastErr[r.id])+'</span>':'')+(r.link?'<br><span class="mute m cp" style="word-break:break-all;font-size:12px">'+esc(r.link)+'</span>':'')+'</p><button id="rt" class="p">Încearcă din nou</button> <button id="pt">Lipește textul</button>':''}
+ ${r.items.map(i=>{const k=ck(i.n),ph=pho(k);return`<div class="it"><${ph?`img class="ph" src="${ph}"`:'button class="ph"'} data-k="${esc(k)}">${ph?'':'+'}</${ph?'img':'button'}><div class="n" data-p="${esc(k)}">${esc(i.n)}<div class="mute m">${i.q} × ${lei(i.u)}</div></div><span class="m">${lei(i.t)}</span></div>`}).join('')}
+ <div class="row" style="margin-top:10px"><span>Total</span><span class="tot m cp">${lei(r.total)}</span></div></div>`;
+function _show(){const m=$('#m');m.classList.remove('screen-in','wide');m.onpointerdown=m.onpointermove=m.onpointerup=m.onpointercancel=null;m.classList.remove('dragsurf');dk=null;m.classList.add('fresh');clearTimeout(m.ft);m.ft=setTimeout(()=>m.classList.remove('fresh'),1400);void m.offsetWidth;m.classList.add('screen-in');if(cur<0)ed=null;$('#h').textContent=cur<0?(space==='guest'?'Cecurile mele · guest':'Cecurile mele'):'Cec';
  document.querySelectorAll('#bn [data-t]').forEach(b=>b.classList.toggle('on',b.dataset.t===tab));
  if(tab==='s'){$('#h').textContent=prod?'Produs':'Statistici';return stats()}
  if(cur<0){return listView(m)}
- const r=R[cur];if(ed&&ed.id===r.id)return editView(m,r);
- m.innerHTML=`<div class="nav"><button id="bk">‹ Toate</button><span class="mute">${cur+1} / ${R.length}</span><span><button id="pv" ${cur>=R.length-1?'disabled':''}>‹</button> <button id="nx" ${cur<1?'disabled':''}>›</button></span></div>
- <div class="card" id="rcard"><button id="eb" style="float:right;padding:4px 10px">✎ Editează</button><b>${esc(r.store)}</b>${r.demo?' <span class="mute">(demo)</span>':''}<div class="mute">${fmt(r)}${r.no?' · bon №<span class="cp">'+esc(r.no)+'</span>':''}</div>${r.pending?'<p>Produsele nu au fost încă citite.'+((r.err||lastErr[r.id])?'<br><span class="mute cp">Motiv: '+esc(r.err||lastErr[r.id])+'</span>':'')+(r.link?'<br><span class="mute m cp" style="word-break:break-all;font-size:12px">'+esc(r.link)+'</span>':'')+'</p><button id="rt" class="p">Încearcă din nou</button> <button id="pt">Lipește textul</button>':''}
- ${r.items.map(i=>{const k=ck(i.n),ph=pho(k);return`<div class="it"><${ph?`img class="ph" src="${ph}"`:'button class="ph"'} data-k="${esc(k)}">${ph?'':'+'}</${ph?'img':'button'}><div class="n" data-p="${esc(k)}">${esc(i.n)}<div class="mute m">${i.q} × ${lei(i.u)}</div></div><span class="m">${lei(i.t)}</span></div>`}).join('')}
- <div class="row" style="margin-top:10px"><span>Total</span><span class="tot m cp">${lei(r.total)}</span></div></div>
+ const r=R[cur];if(ed&&ed.id===r.id)return editView(m,r);try{history.replaceState(navigationState(),'')}catch(e){}
+ m.innerHTML=`<div class="nav"><button id="bk">‹ Toate</button><span class="mute">${cur+1} / ${R.length}</span><span><button id="pv" ${cur<1?'disabled':''}>‹</button> <button id="nx" ${cur>=R.length-1?'disabled':''}>›</button></span></div>
+ <div id="deck">${rcardHtml(r)}</div>
  <div class="row"><a href="${esc(r.link||'#')}" target="_blank" class="mute">Deschide cecul online</a>${r.demo?'':'<button id="rm">Șterge</button>'}</div>`;
- $('#bk').onclick=()=>history.back();$('#pv').onclick=()=>{cur++;show()};$('#nx').onclick=()=>{cur--;show()};
+ $('#bk').onclick=()=>history.back();$('#pv').onclick=()=>{if(dk&&dk.busy)return;cur--;show()};$('#nx').onclick=()=>{if(dk&&dk.busy)return;cur++;show()};
  if($('#rm'))$('#rm').onclick=async()=>{const copy=JSON.parse(JSON.stringify(r));await save({id:r.id,deleted:true,items:[],ts:r.ts});await load();history.back();toast('Cec șters','Anulează',async()=>{await save(copy);await load();show()})};
  if($('#eb'))$('#eb').onclick=()=>{ed=JSON.parse(JSON.stringify(r));pushNavigation();show()};
  if($('#pt'))$('#pt').onclick=()=>ask('Lipește textul cecului',r.id);
  if($('#rt'))$('#rt').onclick=async()=>{toast('Se încearcă...');await retry();const x=R.find(y=>y.id===r.id);if(x&&x.pending)toast('Încă nu merge. Verifică internetul sau proxy-ul.')};
- m.querySelectorAll('[data-k]').forEach(e=>e.onclick=()=>zoom(e.dataset.k));bind(m)}
+ m.querySelectorAll('[data-k]').forEach(e=>e.onclick=()=>zoom(e.dataset.k));bind(m);deckBind(m)}
 const mh=i=>{const f=x=>new Date(R[x].ts).toLocaleDateString('ro-RO',{month:'long',year:'numeric'});return i&&f(i)===f(i-1)?'':'<h3 class="mute" style="margin:14px 0 8px;text-transform:capitalize">'+f(i)+'</h3>'};
 const zoom=k=>{pk=k;const im=pho(k);if(im){$('#li').src=im;$('#lb').hidden=false}else $('#pf').click()};
 const bind=m=>{m.querySelectorAll('[data-ph]').forEach(e=>e.onclick=()=>zoom(e.dataset.ph));m.querySelectorAll('[data-p]').forEach(e=>e.onclick=()=>openProd(e.dataset.p))};
@@ -591,12 +651,7 @@ $('#qf').onchange=async e=>{const f=e.target.files[0];e.target.value='';if(!f)re
  try{const b=await createImageBitmap(f),u=await decode(b,b.width,b.height);u?addLink(u):toast('Nu am găsit codul QR. Încearcă din nou, mai de aproape.')}catch(x){toast('Cititorul QR nu s-a încărcat. Lipește linkul cu „Adaugă”.')}};
 $('#pf').onchange=async e=>{const f=e.target.files[0];e.target.value='';if(!f||!pk)return;
  const img=await shrink(f);await tx('p','readwrite',o=>o.put({k:pk,img,u:Date.now()}));sync();await load();show()};
-let x0=null,y0=null,t0=0;document.addEventListener('touchstart',e=>{if(e.touches.length===1){x0=e.touches[0].clientX;y0=e.touches[0].clientY;t0=Date.now()}else x0=null});
-document.addEventListener('touchend',e=>{if(cur<0||x0==null||ed||tab!=='r')return;const sx=x0,sy=y0;x0=null;if(sx<24||sx>innerWidth-24||Date.now()-t0>700)return;
- if(!$('#lb').hidden||document.querySelector('dialog[open]')||(e.target.closest&&e.target.closest('input,textarea,select')))return;
- const t=e.changedTouches[0],dx=t.clientX-sx,dy=t.clientY-sy;if(Math.abs(dx)<70||Math.abs(dy)>Math.abs(dx)*.6)return;
- if(dx<0&&cur<R.length-1){cur++;history.replaceState(navigationState(),'');show()}else if(dx>0&&cur>0){cur--;history.replaceState(navigationState(),'');show()}});
-document.addEventListener('touchcancel',()=>x0=null);
+
 const SBU='https://cgernuoiikenyzzsjajx.supabase.co',SBK='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNnZXJudW9paWtlbnl6enNqYWp4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE3MTU1OTQsImV4cCI6MjEwNzI5MTU5NH0.K7zkrIpAHrG8_yOm5xeKm1fhD33oo-Hsm3nZ4ytk7ZQ';
 let S=null,space=localStorage.uid||'guest',syncing=0;
 const lib=()=>new Promise((ok,er)=>{if(window.supabase)return ok();const s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js';s.onload=ok;s.onerror=er;document.head.appendChild(s)});
