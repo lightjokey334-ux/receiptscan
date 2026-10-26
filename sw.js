@@ -1,4 +1,4 @@
-const C='cecuri-v9',F=['./','index.html','manifest.webmanifest'],X=['https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js'];
+const C='cecuri-v10',F=['./','index.html','manifest.webmanifest'],X=['https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js'];
 const CDN=/^https:\/\/(cdn\.jsdelivr\.net|cdnjs\.cloudflare\.com)$/;
 self.addEventListener('install',e=>e.waitUntil(caches.open(C).then(c=>c.addAll(F).then(()=>Promise.all(X.map(u=>c.add(new Request(u,{mode:'cors'})).catch(()=>{}))))).then(()=>self.skipWaiting())));
 self.addEventListener('activate',e=>e.waitUntil(caches.keys().then(k=>Promise.all(k.filter(x=>x!==C).map(x=>caches.delete(x)))).then(()=>clients.claim())));
